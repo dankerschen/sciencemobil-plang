@@ -283,6 +283,19 @@ function buildModel(rows,hide){
   const list=[...days.values()].sort((x,y)=>x.date<y.date?-1:1);
   return {days:list,placements,guides};
 }
+/* Coordinates in an address: "49°48'52.3"N 6°25'22.6"E", "49.81453, 6.42294" or a Google Maps link (@lat,lon / q=lat,lon).
+   Returns {lat, lon} (decimal degrees) or null. Used by the app (navigation) and the calendar feed (GEO / LOCATION). */
+function coords(text){
+  const t=String(text||'').replace(/[′’‘`]/g,"'").replace(/[″“”]/g,'"').replace(/''/g,'"');
+  const ok=(lat,lon)=>Math.abs(lat)<=90&&Math.abs(lon)<=180?{lat:+lat.toFixed(6),lon:+lon.toFixed(6)}:null;
+  const part=/(\d{1,3})\s*°\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*'\s*)?(?:(\d{1,2}(?:[.,]\d+)?)\s*"\s*)?/.source;
+  const dms=new RegExp(part+/([NSns])[\s,;]*/.source+part+/([EWOewo])/.source).exec(t);
+  if(dms){const v=(d,m,sec)=>+d+(+(m||'0').replace(',','.'))/60+(+(sec||'0').replace(',','.'))/3600;
+    let lat=v(dms[1],dms[2],dms[3]),lon=v(dms[5],dms[6],dms[7]);
+    if(/s/i.test(dms[4]))lat=-lat; if(/w/i.test(dms[8]))lon=-lon; return ok(lat,lon);}
+  const dec=/(?:^|[@=\s(:])(-?\d{1,2}\.\d{3,})\s*[,;]\s*(-?\d{1,3}\.\d{3,})/.exec(t);
+  return dec?ok(+dec[1],+dec[2]):null;
+}
 /*CORE-END*/
 
 /* ======================= VIEW LOGIC ======================= */
@@ -323,9 +336,11 @@ const placeKey=t=>String(t).normalize('NFC').trim().toLowerCase().replace(/\s+/g
 const placeOf=site=>site&&S.places[placeKey(site)];
 const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 // navigation app: each guide picks their own on this phone (saved locally); asked on the first tap of an address
-const NAV={waze:{name:'Waze',url:a=>'https://waze.com/ul?q='+encodeURIComponent(a)+'&navigate=yes'},
-  google:{name:'Google Maps',url:a=>'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(a)},
-  apple:{name:'Apple Plans',url:a=>'https://maps.apple.com/?daddr='+encodeURIComponent(a)}};
+// an address may also be coordinates from a map pin: then the apps get the exact point
+const dest=a=>{const c=coords(a);return c?c.lat+','+c.lon:a;};
+const NAV={waze:{name:'Waze',url:a=>{const c=coords(a);return 'https://waze.com/ul?'+(c?'ll='+c.lat+','+c.lon:'q='+encodeURIComponent(a))+'&navigate=yes';}},
+  google:{name:'Google Maps',url:a=>'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dest(a))},
+  apple:{name:'Apple Plans',url:a=>'https://maps.apple.com/?daddr='+encodeURIComponent(dest(a))}};
 const navApp=()=>NAV[LS.get('nav')]?LS.get('nav'):'';
 const navUrl=a=>NAV[navApp()||(isIOS?'apple':'google')].url(a);
 const navKeys=()=>isIOS?['waze','apple','google']:['waze','google']; // Apple Plans only on iPhone/iPad
@@ -346,7 +361,7 @@ async function savePlace(site,address){
 async function editPlace(site){
   const cur=(placeOf(site)||{}).a||'';
   const v=prompt(`Adress fir „${site}“ (fir jiddereen).
-Z. B. Rue de l’École 1, L-1234 Uertschaft. Eidel loossen fir ze läschen.`,cur);
+Z. B. Rue de l’École 1, L-1234 Uertschaft, oder Koordinate vun enger Pinn (49°48'52.3"N 6°25'22.6"E). Eidel loossen fir ze läschen.`,cur);
   if(v===null)return;const a=v.replace(/\s+/g,' ').trim();
   if(a===cur)return;
   if(!a&&!confirm('Adress läschen?'))return;
