@@ -390,24 +390,19 @@ try{S.places=JSON.parse(LS.get('places')||'{}')||{};}catch(e){S.places={};}
 const placeKey=t=>String(t).normalize('NFC').trim().toLowerCase().replace(/\s+/g,' ');
 const placeOf=site=>site&&S.places[placeKey(site)];
 const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-// navigation app: each guide picks their own on this phone (saved locally); asked on the first tap of an address
+// Navi button: the phone decides which app opens it.
+//  Android: a geo: link -> the system app chooser / default maps app (Google Maps, Waze, …)
+//  iPhone/iPad: an Apple Maps link -> Apple Maps, or the default navigation app where iOS allows choosing one
+//  PC and everything else: Google Maps in the browser
 // an address may also be coordinates from a map pin: then the apps get the exact point
+const isAndroid=/Android/i.test(navigator.userAgent);
 const dest=a=>{const c=coords(a);return c?c.lat+','+c.lon:a;};
-const NAV={waze:{name:'Waze',url:a=>{const c=coords(a);return 'https://waze.com/ul?'+(c?'ll='+c.lat+','+c.lon:'q='+encodeURIComponent(a))+'&navigate=yes';}},
-  google:{name:'Google Maps',url:a=>'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dest(a))},
-  apple:{name:'Apple Maps',url:a=>'https://maps.apple.com/?daddr='+encodeURIComponent(dest(a))}};
+const navUrl=a=>{const c=coords(a);
+  if(isAndroid)return c?`geo:${c.lat},${c.lon}?q=${c.lat},${c.lon}`:'geo:0,0?q='+encodeURIComponent(a);
+  if(isIOS)return 'https://maps.apple.com/?daddr='+encodeURIComponent(dest(a));
+  return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dest(a));};
+const navTarget=()=>isAndroid||isIOS?'':' target="_blank" rel="noopener"'; // a new tab only on the PC
 const GPS_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.7 2.3a1 1 0 0 0-1.06-.23l-18 7a1 1 0 0 0 .1 1.9l7.6 1.9 1.9 7.6a1 1 0 0 0 1.9.1l7-18a1 1 0 0 0-.44-1.27z"/></svg>';
-const navApp=()=>NAV[LS.get('nav')]?LS.get('nav'):'';
-const navUrl=a=>NAV[navApp()||(isIOS?'apple':'google')].url(a);
-const navKeys=()=>isIOS?['waze','apple','google']:['waze','google']; // Apple Plans only on iPhone/iPad
-function navPick(addr){ // small sheet: which app should open addresses?
-  const d=document.createElement('div');d.className='sheet';
-  d.innerHTML=`<div class="sheetbox"><b>Mat wéi enger App navigéieren?</b><div class="meta">Gëllt fir dësen Handy. Du kanns dat ënnen op der Säit erëm änneren.</div>
-    ${navKeys().map(k=>`<button class="icon" data-nav="${k}">${NAV[k].name}</button>`).join('')}<button class="link" data-nav="">Ofbriechen</button></div>`;
-  d.addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if(!b&&e.target!==d)return;d.remove();
-    if(b&&b.dataset.nav){LS.set('nav',b.dataset.nav);render();if(addr)window.open(NAV[b.dataset.nav].url(addr),'_blank','noopener');}});
-  document.body.appendChild(d);
-}
 function setPlaces(p){if(p&&typeof p==='object'){S.places=p;LS.set('places',JSON.stringify(p));}}
 async function savePlace(site,address){
   const r=await fetch(CONFIG.apiBase+'api/place',{method:'POST',headers:{authorization:'Bearer '+S.pw,'content-type':'application/json'},body:JSON.stringify({site,address})});
@@ -589,7 +584,7 @@ function dayHtml(m,day,g,today){
   const free=!d.mine&&!leave;
   let h=`<div class="day ${day.date===today?'today':''} ${free?'free':''}"><div class="dh"><b>${fmtDay(day.date)}</b><span>`;
   const place=hasSess&&site&&placeOf(site);
-  if(hasSess&&site)h+=`<span class="site">${esc(site)}</span>${place?`<a class="navbtn go" data-a="${esc(place.a)}" href="${esc(navUrl(place.a))}" target="_blank" rel="noopener" aria-label="Navigatioun op ${esc(site)}">${GPS_ICON}Navi</a>`:`<button class="pin" data-site="${esc(site)}" title="Adress derbäisetzen">📍 Adress?</button>`}`;
+  if(hasSess&&site)h+=`<span class="site">${esc(site)}</span>${place?`<a class="navbtn go" data-a="${esc(place.a)}" href="${esc(navUrl(place.a))}"${navTarget()} aria-label="Navigatioun op ${esc(site)}">${GPS_ICON}Navi</a>`:`<button class="pin" data-site="${esc(site)}" title="Adress derbäisetzen">📍 Adress?</button>`}`;
   for(const c of d.cg)h+=`<span class="tag${c.kind==='tt'?'':' warn'}">${c.kind==='tt'?'🏠 ':''}${esc(c.text)}</span>`;
   if(holiday(day.date)&&!day.sessions.length&&!day.events.length)h+=`<span class="tag">${esc(holiday(day.date))}</span>`;
   if(day.setup&&teamOn)h+=`<span class="tag">Opriichten</span>`;
@@ -721,7 +716,7 @@ function render(){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===S.view));
   const y=window.scrollY;
   $('#app').innerHTML=yearReminder()+(S.view==='team'?renderTeam():renderAgenda())+
-    (S.me?`<div class="foot">Ugemellt als ${esc(S.me)} · <button class="link" id="logout">Ofmellen</button><br>Navigatioun: <button class="link" id="navset">${esc(navApp()?NAV[navApp()].name:'nach net gewielt')}</button></div>`:'');
+    (S.me?`<div class="foot">Ugemellt als ${esc(S.me)} · <button class="link" id="logout">Ofmellen</button></div>`:'');
   window.scrollTo(0,y);
 }
 function scrollToToday(){
@@ -742,9 +737,6 @@ document.addEventListener('click',e=>{
   if(e.target.id==='copyics'){const b=e.target,u=b.dataset.u;
     const ok=()=>{b.textContent='Kopéiert ✓';setTimeout(()=>{b.textContent='Link kopéieren';},2000);};
     if(navigator.clipboard)navigator.clipboard.writeText(u).then(ok,()=>prompt('Link kopéieren:',u));else prompt('Link kopéieren:',u);return;}
-  const go=e.target.closest('a.go');
-  if(go&&!navApp()){e.preventDefault();navPick(go.dataset.a);return;}
-  if(e.target.id==='navset'){navPick('');return;}
   const pe=e.target.closest('[data-site]');
   if(pe){editPlace(pe.dataset.site);return;}
   const ee=e.target.closest('.evedit');
