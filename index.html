@@ -60,6 +60,7 @@ main{padding:10px 12px 40px;max-width:760px;margin:0 auto}
 .teach{margin-top:2px}
 .note{font-size:13px;color:var(--mute);margin-top:3px}
 .ev{border-top:1px solid var(--line);padding:6px 0;font-size:14px}
+.ev.meet{background:var(--today);margin:4px -12px 0;padding:6px 12px;border-top:none}
 .notes{font-size:13px;color:var(--mute);margin-top:6px}
 .notes div{margin-top:2px}
 details{margin-top:6px;font-size:13px}
@@ -200,6 +201,10 @@ const isStatus=l=>/planning|plang|datum|period|dates confirm|provisoresch|expobo
 const cleanTitle=t=>t.replace(/\s+\d.*$/,'').replace(/[*]+/g,'').trim()||t;
 const isCode=v=>/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.\-]{1,14}$/.test(v)&&!/^(op|of|of\/op|cong[eé])$/i.test(v);
 const MARKER=/^(of\s*\/\s*op\w*|ofriichten|opriichten)\b[\s,:;-]*/i;
+// team meetings, trainings etc. (in Thema or in a Remarque column) become calendar events
+const MEET=/r[eé]union|reunioun|versammlung|sitzung|meeting|\bteams\b|teambuilding|formation|klausur|besprech/i;
+const ALLDAY=/ganz(en)?\s*dag|ganzen\s*tag|journ[eé]e\s*enti[eè]re|toute\s*la\s*journ[eé]e/i;
+const TIME_RE=/\b\d{1,2}\s*(?:h|:)\s*\d{0,2}(?:\s*[-–]\s*\d{1,2}\s*(?:h|:)\s*\d{0,2})?\s*:?/gi;
 
 function buildModel(rows,hide){
   const hidden=new Set((hide||[]).map(h=>h.toLowerCase()));
@@ -222,8 +227,11 @@ function buildModel(rows,hide){
       if(known.has(l)){codes.push(canon[l]);n++;}
       else if(tok.length===1&&codes.length){const m=[...known].filter(k=>k[0]===l);if(m.length===1){codes.push(canon[m[0]]);n++;}else break;}
       else break;}
-    return {codes,text:t};
+    return {codes,text:t,rest:toks.slice(n).join(' ')};
   };
+  // "Sa 8h30-16h30 Formation handicap", "10h30 Sa Réunion FNR", "Reunioun Kim" -> {start,end,title,codes}
+  const meeting=t=>{const tm=times(t,'');const noTime=t.replace(TIME_RE,' ').replace(/\s+/g,' ').trim();
+    const p=parseRemark(noTime);return {start:tm.start,end:tm.end,title:(p.codes.length?p.rest:noTime)||t,codes:p.codes};};
   const parseConge=t=>{const m=/^([A-Za-zÀ-ÿ]{2,15})\s+(.+)$/.exec(t);
     if(m&&known.has(m[1].toLowerCase()))return {code:canon[m[1].toLowerCase()],text:m[2]};
     if(known.has(t.toLowerCase()))return {code:canon[t.toLowerCase()],text:'Congé'};
@@ -262,6 +270,7 @@ function buildModel(rows,hide){
     const cg=cellv(r,C.conge);
     if(cg){const c=parseConge(cg);if(!day.conge.some(x=>x.code===c.code&&x.text===c.text))day.conge.push(c);}
     for(const k of ['r1','r2','r3']){const rt=cellv(r,C[k]);if(!rt)continue;
+      if(MEET.test(rt)){const mt=meeting(rt);day.events.push({start:mt.start,end:mt.end,title:mt.title,guides:mt.codes,allDay:!mt.start,meet:true});continue;}
       const p=parseRemark(rt);if(p.codes.length)day.pnotes.push(p);else day.notes.push(rt);}
     const mob=cellv(r,C.mobil);if(mob)day.logi.push(mob);
 
@@ -269,8 +278,11 @@ function buildModel(rows,hide){
     else if((teacher||cycle||kids)&&t.start){
       day.sessions.push({start:t.start,end:t.end,thema,teacher,cycle,kids,tel:cellv(r,C.tel),extra:cellv(r,C.extra),guides:own.length?own:lastG});
     } else if(thema||(t.start&&cellv(r,C.start).length>5)){
-      const title=thema||cellv(r,C.start);
-      if(t.start)day.events.push({start:t.start,end:t.end,title,guides:own});
+      let title=thema||cellv(r,C.start),st=t.start,en=t.end;
+      const lead=/^\s*(\d{1,2})\s*[h:]\s*(\d{2})?\s*[:\-–]?\s*/.exec(title); // "13h45: Reunioun Éislek a Guttland"
+      if(!st&&lead&&title.length>lead[0].length){st=lead[1].padStart(2,'0')+':'+(lead[2]||'00');title=title.slice(lead[0].length);}
+      const meet=MEET.test(title),allDay=!st&&(meet||ALLDAY.test(cellv(r,C.start)))&&(meet||!!thema);
+      if(st||allDay)day.events.push({start:st,end:en,title,guides:own,allDay,meet});
       else day.notes.push(title);
     }
     if(cutAfter){placements.push({lines:[]});pi=placements.length-1;}
@@ -445,7 +457,7 @@ function dayFor(day,g){
   const ev=day.events.filter(e=>!e.guides.length||has(e.guides));
   const pn=day.pnotes.filter(p=>has(p.codes));
   const cg=day.conge.filter(c=>!c.code||c.code.toLowerCase()===gl);
-  const mine=s.length>0||pn.length>0||cg.some(c=>c.code)||day.events.some(e=>has(e.guides));
+  const mine=s.length>0||pn.length>0||cg.some(c=>c.code)||ev.length>0; // team meetings (no guide named) are for everyone
   return {s,ev,pn,cg,mine};
 }
 const siteOf=(m,day)=>(m.placements[day.pl]&&m.placements[day.pl].title)||'';
@@ -484,7 +496,7 @@ function dayHtml(m,day,g,today){
   if(place)h+=`<div class="addr">📍 <a class="go" data-a="${esc(place.a)}" href="${esc(navUrl(place.a))}" target="_blank" rel="noopener">${esc(place.a)}</a><button class="link" data-site="${esc(site)}" title="Adress änneren">änneren</button></div>`;
   if(free){return h+`<div class="meta">${day.sessions.length?'Net agedeelt':'–'}</div></div>`;}
   for(const x of d.s.filter(x=>matchQ(x,q)))h+=sessHtml(x);
-  for(const e of d.ev)h+=`<div class="ev"><b>${esc(e.start)}${e.end&&e.end!==e.start?'–'+esc(e.end):''}</b> ${esc(e.title)}</div>`;
+  for(const e of d.ev)h+=`<div class="ev${e.meet?' meet':''}"><b>${e.allDay?'Ganzen Dag':esc(e.start)+(e.end&&e.end!==e.start?'–'+esc(e.end):'')}</b> ${e.meet?'👥 ':''}${esc(e.title)}</div>`;
   const notes=[...d.pn.map(p=>p.text),...(teamOn?day.notes:[]),...(teamOn?day.logi:[])];
   if(notes.length)h+=`<div class="notes">${notes.map(n=>`<div>• ${linkify(n)}</div>`).join('')}</div>`;
   const pl=m.placements[day.pl];
@@ -570,7 +582,9 @@ function renderTeam(){
       if(day){const d=dayFor(day,g);
         if(d.cg.some(x=>x.code))cls+=' lv',c=esc(d.cg.find(x=>x.code).text);
         else if(d.s.length){const st=d.s.map(x=>x.start).sort()[0],en=d.s.map(x=>x.end).sort().slice(-1)[0];c=`<b>${esc(siteOf(m,day)||'?')}</b><br>${d.s.length}× ${esc(st)}–${esc(en)}`;}
-        else if(d.mine)c='Evenement';}
+        else if(d.ev.length)c=esc(d.ev[0].title);
+        else if(d.mine)c='Evenement';
+        const mt=d.ev.filter(e=>e.meet);if(d.s.length&&mt.length)c+=`<br>👥 ${esc(mt.map(e=>e.allDay?'Dag':e.start).join(', '))}`;}
       if(c==='–'&&holiday(ds))c=`<span class="meta">${esc(holiday(ds))}</span>`;
       if(g.toLowerCase()===S.guide.toLowerCase())cls+=' me';
       h+=`<td class="${cls}" data-g="${esc(g)}" data-d="${ds}">${c}</td>`;
