@@ -28,8 +28,20 @@ h1 img{width:30px;height:30px;border-radius:8px;box-shadow:0 0 0 1px rgba(255,25
 header .icon,header .chip,header .tab{background:rgba(255,255,253,.08);border-color:rgba(255,255,253,.28);color:var(--head-ink)}
 header .chip.on{background:var(--hot);border-color:var(--hot);color:#FFFFFD}
 header .tab.on{background:var(--head-ink);border-color:var(--head-ink);color:var(--head)}
-header #q{background:rgba(255,255,253,.1);border-color:rgba(255,255,253,.28);color:var(--head-ink)}
-header #q::placeholder{color:rgba(255,255,253,.6)}
+.search{max-width:760px;margin:0 auto;padding:0 12px calc(24px + env(safe-area-inset-bottom))}
+.evrow{display:flex;gap:6px;align-items:baseline}
+.evrow .t{flex:1}
+.evedit{border:none;background:none;color:var(--mute);cursor:pointer;padding:0 4px;font-size:14px}
+.evby{font-size:11px;color:var(--mute)}
+.addev{width:100%;margin:8px 0;border:1px dashed var(--accent);background:none;border-radius:10px;padding:8px;color:var(--accent);cursor:pointer;font-weight:600}
+.evform label{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--mute)}
+.evform input[type=text],.evform input[type=date],.evform input[type=time]{padding:9px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
+.evform .row{display:flex;gap:8px}.evform .row label{flex:1}
+.evform .chk{flex-direction:row;align-items:center;gap:6px;color:var(--ink);font-size:15px}
+.evform .who{display:flex;flex-wrap:wrap;gap:6px}
+.evform .who label{flex-direction:row;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:5px 10px;color:var(--ink);font-size:14px}
+.evform .primary{background:var(--hot);color:#FFFFFD;border-color:var(--hot)}
+.sheetbox{max-height:92vh;overflow:auto}
 button{font:inherit;color:inherit}
 .icon{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:6px 12px;cursor:pointer}
 .icon:disabled{opacity:.3;cursor:default}
@@ -93,9 +105,11 @@ body.out .tabs,body.out #q,body.out #refresh{display:none}
 .calbtns{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 6px}
 .calbtns .icon{text-decoration:none;color:var(--ink);font-size:13px}
 .pin{border:1px dashed var(--line);background:none;border-radius:8px;padding:1px 7px;margin-left:6px;font-size:12px;color:var(--mute);cursor:pointer}
-.addr{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:14px}
-.addr a{font-weight:600;text-decoration:none;border-bottom:1px solid currentColor}
+.addr{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:13px;color:var(--mute)}
 .addr .link{font-size:12px;color:var(--mute)}
+.navbtn{display:inline-flex;align-items:center;gap:5px;margin-left:8px;padding:4px 11px 4px 9px;border-radius:999px;background:var(--hot);color:#FFFFFD;font-size:13px;font-weight:700;text-decoration:none;vertical-align:middle;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.navbtn svg{width:15px;height:15px;fill:currentColor}
+.navbtn:active{transform:scale(.96)}
 .notice{border:1px dashed var(--line);border-radius:12px;padding:8px 12px;margin:8px 0;font-size:13px;color:var(--mute)}
 .notice.hol{border:1px solid var(--accent);background:var(--soft);color:var(--accent);font-weight:600}
 .notice.warn{border:1px solid var(--warn);background:var(--warn-bg);color:var(--warn)}
@@ -107,9 +121,9 @@ body.out .tabs,body.out #q,body.out #refresh{display:none}
   <div id="status">Lueden…</div>
   <nav class="chips" id="chips"></nav>
   <div class="tabs"><button class="tab" data-v="agenda">Mäin Agenda</button><button class="tab" data-v="team">Team-Woch</button></div>
-  <input id="q" type="search" placeholder="Sich no Klass, Titulaire, Schoul, Thema…" autocomplete="off">
 </header>
 <main id="app"><div class="empty">Lueden…</div></main>
+<div class="search"><input id="q" type="search" placeholder="🔍 Sich no Klass, Titulaire, Schoul, Thema…" autocomplete="off"></div>
 
 <script>
 /* ======================= CONFIG ======================= */
@@ -315,6 +329,28 @@ function coords(text){
   const dec=/(?:^|[@=\s(:])(-?\d{1,2}\.\d{3,})\s*[,;]\s*(-?\d{1,3}\.\d{3,})/.exec(t);
   return dec?ok(+dec[1],+dec[2]):null;
 }
+/* Appointments and meetings edited in the app (stored by the worker, shared by everyone):
+   {id, ref, date, start, end, allDay, title, guides, meet, deleted, by, at}
+   ref = evKey of the sheet event it changes ('' = added in the app). If the sheet later changes that event,
+   ref no longer matches and the sheet version shows again: the sheet still wins. guides [] = everyone. */
+const evKey=(date,e)=>[date,e.start||'',String(e.title||'').trim().toLowerCase()].join('|');
+function applyEdits(model,edits){
+  const list=Object.values(edits||{});
+  const days=new Map(model.days.map(d=>[d.date,{...d,events:[]}]));
+  const dayAt=date=>{if(!days.has(date)){const prev=[...days.keys()].filter(k=>k<date).sort().pop();
+    days.set(date,{date,pl:prev?days.get(prev).pl:0,sessions:[],events:[],notes:[],pnotes:[],conge:[],logi:[],setup:false,teardown:false});}
+    return days.get(date);};
+  const byRef={};for(const x of list)if(x.ref)byRef[x.ref]=x;
+  const mk=(x,base)=>({...(base||{}),start:x.allDay?'':x.start||'',end:x.allDay?'':x.end||'',allDay:!!x.allDay||!x.start,
+    title:x.title,guides:x.guides||[],meet:!!x.meet,appt:!x.meet,edit:x});
+  for(const d of model.days)for(const e of d.events){const k=evKey(d.date,e),x=byRef[k];
+    if(!x){days.get(d.date).events.push({...e,key:k});continue;}
+    if(!x.deleted)dayAt(x.date).events.push({...mk(x,e),key:k});}
+  for(const x of list)if(!x.ref&&!x.deleted&&x.date)dayAt(x.date).events.push({...mk(x),key:'x'+x.id});
+  const at=e=>e.allDay?'':e.start||'99';
+  for(const d of days.values())d.events.sort((a,b)=>at(a)<at(b)?-1:at(a)>at(b)?1:0);
+  return {...model,days:[...days.values()].sort((a,b)=>a.date<b.date?-1:1)};
+}
 /*CORE-END*/
 
 /* ======================= VIEW LOGIC ======================= */
@@ -360,6 +396,7 @@ const dest=a=>{const c=coords(a);return c?c.lat+','+c.lon:a;};
 const NAV={waze:{name:'Waze',url:a=>{const c=coords(a);return 'https://waze.com/ul?'+(c?'ll='+c.lat+','+c.lon:'q='+encodeURIComponent(a))+'&navigate=yes';}},
   google:{name:'Google Maps',url:a=>'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dest(a))},
   apple:{name:'Apple Maps',url:a=>'https://maps.apple.com/?daddr='+encodeURIComponent(dest(a))}};
+const GPS_ICON='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.7 2.3a1 1 0 0 0-1.06-.23l-18 7a1 1 0 0 0 .1 1.9l7.6 1.9 1.9 7.6a1 1 0 0 0 1.9.1l7-18a1 1 0 0 0-.44-1.27z"/></svg>';
 const navApp=()=>NAV[LS.get('nav')]?LS.get('nav'):'';
 const navUrl=a=>NAV[navApp()||(isIOS?'apple':'google')].url(a);
 const navKeys=()=>isIOS?['waze','apple','google']:['waze','google']; // Apple Plans only on iPhone/iPad
@@ -386,6 +423,64 @@ Z. B. Rue de l’École 1, L-1234 Uertschaft, oder Koordinate vun enger Pinn (49
   if(!a&&!confirm('Adress läschen?'))return;
   try{await savePlace(site,a);render();}
   catch(e){alert('Konnt net gespäichert ginn. Sinn ech online? Probéier méi spéit nach eng Kéier.');}
+}
+/* ---- appointments & meetings edited in the app (shared through the worker, see applyEdits in CORE) ---- */
+try{S.edits=JSON.parse(LS.get('edits')||'{}')||{};}catch(e){S.edits={};}
+function setEdits(x){if(x&&typeof x==='object'){S.edits=x;LS.set('edits',JSON.stringify(x));}}
+function rebuild(){if(!S.base)return;S.full=applyEdits(S.base,S.edits);applyLimit();render();}
+async function saveEdit(body){
+  const r=await fetch(CONFIG.apiBase+'api/event',{method:'POST',headers:{authorization:'Bearer '+S.pw,'content-type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok)throw new Error(r.status===401?'auth':'net');
+  setEdits((await r.json()).edits);rebuild();
+}
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const findEv=(date,key)=>{const d=S.full&&S.full.days.find(x=>x.date===date);return d&&d.events.find(e=>e.key===key);};
+// form to add or change an appointment / meeting; e = event from the model, or null for a new one
+function evForm(e,date){
+  const x=e||{title:'',start:'',end:'',allDay:false,meet:true,guides:S.me?[S.me]:[]};
+  const all=!x.guides.length,on=g=>x.guides.some(y=>y.toLowerCase()===g.toLowerCase());
+  const fromSheet=e&&!(e.edit&&!e.edit.ref),edited=e&&e.edit;
+  const d=document.createElement('div');d.className='sheet';
+  d.innerHTML=`<form class="sheetbox evform" id="evform"><b>${e?'Termin änneren':'Neien Termin / Reunioun'}</b>
+    <label>Titel<input type="text" name="title" maxlength="150" required value="${esc(x.title)}"></label>
+    <label>Datum<input type="date" name="date" required value="${esc(date||ymd(new Date()))}"></label>
+    <label class="chk"><input type="checkbox" name="allDay"${x.allDay?' checked':''}> Ganzen Dag</label>
+    <div class="row times"><label>Vun<input type="time" name="start" value="${esc(x.start||'')}"></label><label>Bis<input type="time" name="end" value="${esc(x.end||'')}"></label></div>
+    <div class="row"><label class="chk"><input type="radio" name="meet" value="1"${x.meet?' checked':''}> 👥 Reunioun</label><label class="chk"><input type="radio" name="meet" value="0"${x.meet?'':' checked'}> Termin</label></div>
+    <div class="meta">Fir wien?</div>
+    <div class="who"><label><input type="checkbox" name="all"${all?' checked':''}> Jiddereen</label>
+      ${S.full.guides.map(g=>`<label><input type="checkbox" name="g" value="${esc(g)}"${!all&&on(g)?' checked':''}> ${esc(g)}</label>`).join('')}</div>
+    <div class="err" id="everr"></div>
+    <button class="icon primary" type="submit">Späicheren</button>
+    ${e?`<button class="icon" type="button" data-act="del">Läschen</button>`:''}
+    ${edited&&edited.ref?`<button class="link" type="button" data-act="reset">Zréck wéi an der Tabell</button>`:''}
+    <button class="link" type="button" data-act="cancel">Ofbriechen</button>
+    <div class="meta">Gëllt fir jiddereen an och am Handy-Kalenner.${fromSheet?' D’Tabell selwer ännert sech net: wann do dësen Termin méi spéit geännert gëtt, gëllt erëm d’Tabell.':''}</div></form>`;
+  const f=d.querySelector('form'),T=()=>{f.start.disabled=f.end.disabled=f.allDay.checked;};T();
+  f.allDay.addEventListener('change',T);
+  f.addEventListener('change',ev=>{if(ev.target.name==='all'&&ev.target.checked)f.querySelectorAll('[name=g]').forEach(c=>c.checked=false);
+    if(ev.target.name==='g'&&ev.target.checked)f.all.checked=false;});
+  const close=()=>d.remove(),fail=()=>{$('#everr').textContent='Konnt net gespäichert ginn. Sinn ech online?';};
+  const base=()=>({id:(edited&&edited.id)||newId(),ref:edited?edited.ref:(e?e.key:'')});
+  d.addEventListener('click',async ev=>{
+    if(ev.target===d){close();return;}
+    const act=ev.target.dataset&&ev.target.dataset.act;if(!act)return;
+    if(act==='cancel'){close();return;}
+    try{
+      if(act==='reset'){await saveEdit({id:edited.id,remove:true});close();return;}
+      if(act==='del'){if(!confirm('Dësen Termin fir jiddereen läschen?'))return;
+        const b=base();await saveEdit(b.ref?{...b,date:e.edit?e.edit.date:date,deleted:true}:{id:b.id,remove:true});close();}
+    }catch(err){fail();}
+  });
+  f.addEventListener('submit',async ev=>{ev.preventDefault();
+    const guides=f.all.checked?[]:[...f.querySelectorAll('[name=g]:checked')].map(c=>c.value);
+    if(!f.all.checked&&!guides.length){$('#everr').textContent='Wiel op d’mannst eng Persoun, oder „Jiddereen“.';return;}
+    if(!f.allDay.checked&&!f.start.value){$('#everr').textContent='Gëff eng Zäit un, oder „Ganzen Dag“.';return;}
+    const rec={...base(),date:f.date.value,title:f.title.value.trim(),allDay:f.allDay.checked,start:f.allDay.checked?'':f.start.value,
+      end:f.allDay.checked?'':f.end.value,meet:f.meet.value==='1',guides};
+    try{await saveEdit({rec});close();}catch(err){fail();}
+  });
+  document.body.appendChild(d);f.title.focus();
 }
 // asks the worker for the sheet; returns {guide,csv}, or throws 'auth' (wrong password) / 'net' (offline, server down)
 async function fetchData(pw){
@@ -414,18 +509,18 @@ async function login(pw){
     await load(true,d);scrollToToday();}
   catch(e){showLogin(e.message==='auth'?'D’Passwuert stëmmt net.':'Keng Verbindung. Probéier méi spéit nach eng Kéier.');}
 }
-function logout(){['pw','me','csv','csvAt','guide','places'].forEach(LS.del);S.places={};S.pw='';S.me='';S.model=null;S.guide='';showLogin('');}
+function logout(){['pw','me','csv','csvAt','guide','places','edits'].forEach(LS.del);S.places={};S.edits={};S.pw='';S.me='';S.model=null;S.guide='';showLogin('');}
 async function load(force,pre){
   if(!S.pw){if(!document.querySelector('#login'))showLogin('');return;} // don't wipe a half-typed password on refresh/focus
   if(!force&&Date.now()-S.fetchedAt<60000&&S.model)return;
   $('#status').textContent='Aktualiséieren…';$('#status').className='';
   let text=null;
-  try{const d=pre||await fetchData(S.pw);text=d.csv;S.me=d.guide;LS.set('me',d.guide);setPlaces(d.places);}
+  try{const d=pre||await fetchData(S.pw);text=d.csv;S.me=d.guide;LS.set('me',d.guide);setPlaces(d.places);setEdits(d.edits);}
   catch(e){if(e.message==='auth'){logout();showLogin('D’Passwuert gëllt net méi. Frë den Dan no deem neien.');return;}}
   if(text){S.offline=false;S.fetchedAt=Date.now();LS.set('csv',text);LS.set('csvAt',String(S.fetchedAt));}
   else{text=LS.get('csv');S.offline=true;S.fetchedAt=+LS.get('csvAt')||0;}
   if(!text){$('#status').textContent='D’Tabell konnt net geluede ginn an et ass nach näischt gespäichert.';$('#status').className='off';return;}
-  try{S.full=buildModel(parseCSV(text),CONFIG.hideGuides);S.horizon=horizonEnd();
+  try{S.base=buildModel(parseCSV(text),CONFIG.hideGuides);S.full=applyEdits(S.base,S.edits);S.horizon=horizonEnd();
     // last day with a session that already has a guide (anyone); beyond the horizon this is only shown on request
     S.lastPlanned=S.full.days.filter(d=>d.sessions.some(s=>s.guides.length)).map(d=>d.date).pop()||'';
     applyLimit();}catch(e){$('#status').textContent='D’Layout vun der Tabell konnt net gelies ginn: '+e.message;$('#status').className='off';return;}
@@ -494,16 +589,18 @@ function dayHtml(m,day,g,today){
   const free=!d.mine&&!leave;
   let h=`<div class="day ${day.date===today?'today':''} ${free?'free':''}"><div class="dh"><b>${fmtDay(day.date)}</b><span>`;
   const place=hasSess&&site&&placeOf(site);
-  if(hasSess&&site)h+=`<span class="site">${esc(site)}</span>${place?'':`<button class="pin" data-site="${esc(site)}" title="Adress derbäisetzen">📍 Adress?</button>`}`;
+  if(hasSess&&site)h+=`<span class="site">${esc(site)}</span>${place?`<a class="navbtn go" data-a="${esc(place.a)}" href="${esc(navUrl(place.a))}" target="_blank" rel="noopener" aria-label="Navigatioun op ${esc(site)}">${GPS_ICON}Navi</a>`:`<button class="pin" data-site="${esc(site)}" title="Adress derbäisetzen">📍 Adress?</button>`}`;
   for(const c of d.cg)h+=`<span class="tag${c.kind==='tt'?'':' warn'}">${c.kind==='tt'?'🏠 ':''}${esc(c.text)}</span>`;
   if(holiday(day.date)&&!day.sessions.length&&!day.events.length)h+=`<span class="tag">${esc(holiday(day.date))}</span>`;
   if(day.setup&&teamOn)h+=`<span class="tag">Opriichten</span>`;
   if(day.teardown&&teamOn)h+=`<span class="tag">Ofriichten</span>`;
   h+=`</span></div>`;
-  if(place)h+=`<div class="addr">📍 <a class="go" data-a="${esc(place.a)}" href="${esc(navUrl(place.a))}" target="_blank" rel="noopener">${esc(place.a)}</a><button class="link" data-site="${esc(site)}" title="Adress änneren">änneren</button></div>`;
+  if(place)h+=`<div class="addr">📍 ${esc(place.a)}<button class="link" data-site="${esc(site)}" title="Adress änneren">änneren</button></div>`;
   if(free){return h+`<div class="meta">${day.sessions.length?'Net agedeelt':'–'}</div></div>`;}
   for(const x of d.s.filter(x=>matchQ(x,q)))h+=sessHtml(x);
-  for(const e of d.ev)h+=`<div class="ev${e.meet?' meet':''}"><b>${e.allDay?'Ganzen Dag':esc(e.start)+(e.end&&e.end!==e.start?'–'+esc(e.end):'')}</b> ${e.meet?'👥 ':''}${esc(e.title)}</div>`;
+  for(const e of d.ev){const who=e.guides.length?e.guides.join(', '):'';
+    const by=e.edit?(e.edit.ref?'geännert':'derbäigesat')+' vum '+e.edit.by:'';
+    h+=`<div class="ev${e.meet?' meet':''}"><div class="evrow"><span class="t"><b>${e.allDay?'Ganzen Dag':esc(e.start)+(e.end&&e.end!==e.start?'–'+esc(e.end):'')}</b> ${e.meet?'👥 ':''}${esc(e.title)}${who&&!(who.toLowerCase()===g.toLowerCase())?` <span class="evby">(${esc(who)})</span>`:''}${by?`<br><span class="evby">${esc(by)}</span>`:''}</span><button class="evedit" data-ev="${esc(e.key)}" data-date="${day.date}" title="Änneren" aria-label="Änneren">✎</button></div></div>`;}
   const notes=[...d.pn.map(p=>p.text),...(teamOn?day.notes:[]),...(teamOn?day.logi:[])];
   if(notes.length)h+=`<div class="notes">${notes.map(n=>`<div>• ${linkify(n)}</div>`).join('')}</div>`;
   const pl=m.placements[day.pl];
@@ -545,10 +642,10 @@ function renderAgenda(){
   const laterBtn=later?(S.beyond
     ?`<button class="past" id="beyond">Nëmmen déi nächst ${CONFIG.horizonMonths} Méint weisen</button>`
     :`<button class="past" id="beyond">Méi wäit kucken: no dem ${fmtShort(S.horizon)} ass schonn eppes fir ${esc(g)} agedroen (nach net fix, kann nach änneren)</button>`):'';
-  if(!all.length)return calBlock(g)+`<div class="empty">Fir ${esc(g)} ass nach näischt agedroen.</div>`+laterBtn;
+  if(!all.length)return calBlock(g)+`<button class="addev" id="addev">＋ Termin / Reunioun derbäisetzen</button>`+`<div class="empty">Fir ${esc(g)} ass nach näischt agedroen.</div>`+laterBtn;
   const past=all.filter(w=>addDays(w.wk,6)<today),rest=all.filter(w=>addDays(w.wk,6)>=today);
   const vis=S.showPast?all:rest;
-  let h=calBlock(g);
+  let h=calBlock(g)+`<button class="addev" id="addev">＋ Termin / Reunioun derbäisetzen</button>`;
   if(past.length&&!S.showPast)h+=`<button class="past" id="showpast">${past.length} vergaange ${past.length>1?'Wochen':'Woch'} weisen</button>`;
   for(const w of vis){
     let bits=[];
@@ -600,7 +697,7 @@ function renderTeam(){
     }
     h+='</tr>';
   }
-  h+='</table><div class="meta" style="margin-top:8px">Tipp op eng Zell, fir den Agenda vun deem Guide opzemaachen.</div>';
+  h+='</table><div class="meta" style="margin-top:8px">Tipp op eng Zell, fir den Agenda vun deem Guide opzemaachen.</div>'+`<button class="addev" id="addev">＋ Termin / Reunioun derbäisetzen</button>`;
   if(addDays(wk,7)>S.horizon&&S.lastPlanned>S.horizon&&wk<=S.horizon)
     h+=`<div class="meta" style="margin-top:4px">No dem ${fmtShort(S.horizon)} ass schonn eppes agedroen: mat ▶ weiderkucken (nach net fix, kann nach änneren).</div>`;
   const un=m.days.filter(d=>d.date>=wk&&d.date<=addDays(wk,4)).flatMap(d=>d.sessions.filter(s=>!s.guides.length).map(s=>({d:d.date,s})));
@@ -650,6 +747,9 @@ document.addEventListener('click',e=>{
   if(e.target.id==='navset'){navPick('');return;}
   const pe=e.target.closest('[data-site]');
   if(pe){editPlace(pe.dataset.site);return;}
+  const ee=e.target.closest('.evedit');
+  if(ee){const ev=findEv(ee.dataset.date,ee.dataset.ev);if(ev)evForm(ev,ee.dataset.date);return;}
+  if(e.target.id==='addev'){evForm(null,S.view==='team'&&S.week&&S.week>ymd(new Date())?S.week:ymd(new Date()));return;}
   if(e.target.id==='beyond'){S.beyond=!S.beyond;applyLimit();render();return;}
   const td=e.target.closest('td.c');
   if(td){S.guide=td.dataset.g;localStorage.setItem('guide',S.guide);S.view='agenda';localStorage.setItem('view','agenda');render();
