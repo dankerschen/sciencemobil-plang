@@ -1,4 +1,4 @@
-# Guiden-Planung
+# ScienceMobil-Plang
 
 Planning app for the Naturmusée Sciencemobil guides. Each guide logs in with their own password.
 

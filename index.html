@@ -5,20 +5,31 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Guiden-Planung">
-<meta name="theme-color" content="#1f5f4a">
-<title>Guiden-Planung 2026/27</title>
+<meta name="apple-mobile-web-app-title" content="ScienceMobil">
+<meta name="theme-color" content="#00262A">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>ScienceMobil-Plang</title>
 <style>
-:root{--bg:#f4f6f5;--card:#fff;--ink:#17211d;--mute:#66736d;--line:#dde4e0;--accent:#1f5f4a;--accent-ink:#fff;--soft:#e3efe9;--warn:#b4531a;--warn-bg:#fbeadd;--today:#fff6d6}
-@media(prefers-color-scheme:dark){:root{--bg:#101513;--card:#1a211e;--ink:#e8eeea;--mute:#93a19a;--line:#2b3631;--accent:#4fb08a;--accent-ink:#06130d;--soft:#1f2f28;--warn:#f0a572;--warn-bg:#3a2417;--today:#3a3515}}
+/* Colours follow the Naturmusée site: dark teal, off-white, mint, lavender, coral */
+:root{--head:#00262A;--head-ink:#FFFFFD;--hot:#DF3234;--bg:#F3F3F1;--card:#FFFFFD;--ink:#1D1D1B;--mute:#5E6866;--line:#DFDFDA;--accent:#00262A;--accent-ink:#FFFFFD;--soft:#DCECDB;--warn:#B8292B;--warn-bg:#FCE7E6;--today:#EEECF5;--today-line:#8E86D6}
+@media(prefers-color-scheme:dark){:root{--head:#00262A;--bg:#011719;--card:#08292C;--ink:#F3F3F1;--mute:#9DB0AE;--line:#1A3F43;--accent:#A9D9AE;--accent-ink:#00262A;--soft:#123A35;--warn:#FC6365;--warn-bg:#3A1718;--today:#211F3A;--today-line:#C6C1EE}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
-header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;border-bottom:1px solid var(--line)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 area,Candara,"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:5;background:var(--head);color:var(--head-ink);padding:calc(env(safe-area-inset-top) + 8px) 12px 10px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-h1{font-size:18px;margin:0}
-#status{font-size:12px;color:var(--mute)}
-#status.off{color:var(--warn)}
+h1{font-size:17px;margin:0;display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.02em}
+h1 img{width:30px;height:30px;border-radius:8px;box-shadow:0 0 0 1px rgba(255,255,253,.25)}
+#status{font-size:12px;color:rgba(255,255,253,.7)}
+#status.off{color:#FC6365}
+header .icon,header .chip,header .tab{background:rgba(255,255,253,.08);border-color:rgba(255,255,253,.28);color:var(--head-ink)}
+header .chip.on{background:var(--hot);border-color:var(--hot);color:#FFFFFD}
+header .tab.on{background:var(--head-ink);border-color:var(--head-ink);color:var(--head)}
+header #q{background:rgba(255,255,253,.1);border-color:rgba(255,255,253,.28);color:var(--head-ink)}
+header #q::placeholder{color:rgba(255,255,253,.6)}
 button{font:inherit;color:inherit}
 .icon{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:6px 12px;cursor:pointer}
 .icon:disabled{opacity:.3;cursor:default}
@@ -33,7 +44,7 @@ main{padding:10px 12px 40px;max-width:760px;margin:0 auto}
 .wk{margin:16px 0 6px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline}
 .wk small{color:var(--mute);font-weight:500}
 .day{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0}
-.day.today{background:var(--today);border-color:var(--warn)}
+.day.today{background:var(--today);border-color:var(--today-line);box-shadow:inset 4px 0 0 var(--today-line)}
 .day.free{opacity:.55;padding:6px 12px}
 .dh{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
 .dh b{font-size:15px}
@@ -66,9 +77,10 @@ td.c{cursor:pointer}
 .wkbar{display:flex;align-items:center;justify-content:space-between;margin:10px 0}
 body.out .tabs,body.out #q,body.out #refresh{display:none}
 .login{max-width:340px;margin:40px auto;display:flex;flex-direction:column;gap:10px}
-.login h2{margin:0 0 6px;font-size:20px}
+.login h2{margin:0 0 6px;font-size:20px;text-align:center}
+.login .logo{width:84px;height:84px;margin:0 auto;border-radius:20px}
 .login input{padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;font-size:16px}
-.login .icon{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);padding:10px;font-weight:600}
+.login .icon{background:var(--hot);color:#FFFFFD;border-color:var(--hot);padding:10px;font-weight:700}
 .err{color:var(--warn);font-weight:600}
 .foot{text-align:center;color:var(--mute);font-size:13px;margin-top:24px}
 .link{background:none;border:none;color:var(--accent);text-decoration:underline;cursor:pointer;padding:0}
@@ -82,7 +94,7 @@ body.out .tabs,body.out #q,body.out #refresh{display:none}
 </head>
 <body>
 <header>
-  <div class="top"><h1>Guiden-Planung</h1><button class="icon" id="refresh" aria-label="Aktualiséieren">↻ Aktualiséieren</button></div>
+  <div class="top"><h1><img src="icon.svg" alt="">ScienceMobil-Plang</h1><button class="icon" id="refresh" aria-label="Aktualiséieren">↻ Aktualiséieren</button></div>
   <div id="status">Lueden…</div>
   <nav class="chips" id="chips"></nav>
   <div class="tabs"><button class="tab" data-v="agenda">Mäin Agenda</button><button class="tab" data-v="team">Team-Woch</button></div>
@@ -310,7 +322,7 @@ function showLogin(msg){
   $('#chips').innerHTML='';
   $('#status').textContent='';
   document.body.classList.add('out'); // hide tabs and search until logged in
-  $('#app').innerHTML=`<form class="login" id="login"><h2>Guiden-Planung</h2>
+  $('#app').innerHTML=`<form class="login" id="login"><img class="logo" src="icon.svg" alt=""><h2>ScienceMobil-Plang</h2>
     <label for="pw">Däi Passwuert</label>
     <input id="pw" type="password" autocomplete="current-password" required>
     <button class="icon" type="submit">Umellen</button>
