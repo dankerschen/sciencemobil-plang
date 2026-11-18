@@ -82,7 +82,11 @@ body.out .tabs,body.out #q,body.out #refresh{display:none}
 .login input{padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;font-size:16px}
 .login .icon{background:var(--hot);color:#FFFFFD;border-color:var(--hot);padding:10px;font-weight:700}
 .err{color:var(--warn);font-weight:600}
-.foot{text-align:center;color:var(--mute);font-size:13px;margin-top:24px}
+.foot{text-align:center;color:var(--mute);font-size:13px;margin-top:24px;line-height:1.9}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheetbox{background:var(--card);color:var(--ink);width:100%;max-width:420px;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px}
+.sheetbox .icon{padding:11px;font-weight:600;font-size:16px}
+.sheetbox .link{margin-top:4px;align-self:center}
 .link{background:none;border:none;color:var(--accent);text-decoration:underline;cursor:pointer;padding:0}
 .cal{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 12px;margin:8px 0}
 .calbtns{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 6px}
@@ -318,8 +322,21 @@ try{S.places=JSON.parse(LS.get('places')||'{}')||{};}catch(e){S.places={};}
 const placeKey=t=>String(t).normalize('NFC').trim().toLowerCase().replace(/\s+/g,' ');
 const placeOf=site=>site&&S.places[placeKey(site)];
 const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-// opens navigation to the address: Apple Maps on iPhone, Google Maps elsewhere
-const navUrl=a=>isIOS?'https://maps.apple.com/?daddr='+encodeURIComponent(a):'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(a);
+// navigation app: each guide picks their own on this phone (saved locally); asked on the first tap of an address
+const NAV={waze:{name:'Waze',url:a=>'https://waze.com/ul?q='+encodeURIComponent(a)+'&navigate=yes'},
+  google:{name:'Google Maps',url:a=>'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(a)},
+  apple:{name:'Apple Plans',url:a=>'https://maps.apple.com/?daddr='+encodeURIComponent(a)}};
+const navApp=()=>NAV[LS.get('nav')]?LS.get('nav'):'';
+const navUrl=a=>NAV[navApp()||(isIOS?'apple':'google')].url(a);
+const navKeys=()=>isIOS?['waze','apple','google']:['waze','google']; // Apple Plans only on iPhone/iPad
+function navPick(addr){ // small sheet: which app should open addresses?
+  const d=document.createElement('div');d.className='sheet';
+  d.innerHTML=`<div class="sheetbox"><b>Mat wéi enger App navigéieren?</b><div class="meta">Gëllt fir dësen Handy. Du kanns dat ënnen op der Säit erëm änneren.</div>
+    ${navKeys().map(k=>`<button class="icon" data-nav="${k}">${NAV[k].name}</button>`).join('')}<button class="link" data-nav="">Ofbriechen</button></div>`;
+  d.addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if(!b&&e.target!==d)return;d.remove();
+    if(b&&b.dataset.nav){LS.set('nav',b.dataset.nav);render();if(addr)window.open(NAV[b.dataset.nav].url(addr),'_blank','noopener');}});
+  document.body.appendChild(d);
+}
 function setPlaces(p){if(p&&typeof p==='object'){S.places=p;LS.set('places',JSON.stringify(p));}}
 async function savePlace(site,address){
   const r=await fetch(CONFIG.apiBase+'api/place',{method:'POST',headers:{authorization:'Bearer '+S.pw,'content-type':'application/json'},body:JSON.stringify({site,address})});
@@ -449,7 +466,7 @@ function dayHtml(m,day,g,today){
   if(day.setup&&teamOn)h+=`<span class="tag">Opriichten</span>`;
   if(day.teardown&&teamOn)h+=`<span class="tag">Ofriichten</span>`;
   h+=`</span></div>`;
-  if(place)h+=`<div class="addr">📍 <a href="${esc(navUrl(place.a))}" target="_blank" rel="noopener">${esc(place.a)}</a><button class="link" data-site="${esc(site)}" title="Adress änneren">änneren</button></div>`;
+  if(place)h+=`<div class="addr">📍 <a class="go" data-a="${esc(place.a)}" href="${esc(navUrl(place.a))}" target="_blank" rel="noopener">${esc(place.a)}</a><button class="link" data-site="${esc(site)}" title="Adress änneren">änneren</button></div>`;
   if(free){return h+`<div class="meta">${day.sessions.length?'Net agedeelt':'–'}</div></div>`;}
   for(const x of d.s.filter(x=>matchQ(x,q)))h+=sessHtml(x);
   for(const e of d.ev)h+=`<div class="ev"><b>${esc(e.start)}${e.end&&e.end!==e.start?'–'+esc(e.end):''}</b> ${esc(e.title)}</div>`;
@@ -569,7 +586,7 @@ function render(){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===S.view));
   const y=window.scrollY;
   $('#app').innerHTML=yearReminder()+(S.view==='team'?renderTeam():renderAgenda())+
-    (S.me?`<div class="foot">Ugemellt als ${esc(S.me)} · <button class="link" id="logout">Ofmellen</button></div>`:'');
+    (S.me?`<div class="foot">Ugemellt als ${esc(S.me)} · <button class="link" id="logout">Ofmellen</button><br>Navigatioun: <button class="link" id="navset">${esc(navApp()?NAV[navApp()].name:'nach net gewielt')}</button></div>`:'');
   window.scrollTo(0,y);
 }
 function scrollToToday(){
@@ -590,6 +607,9 @@ document.addEventListener('click',e=>{
   if(e.target.id==='copyics'){const b=e.target,u=b.dataset.u;
     const ok=()=>{b.textContent='Kopéiert ✓';setTimeout(()=>{b.textContent='Link kopéieren';},2000);};
     if(navigator.clipboard)navigator.clipboard.writeText(u).then(ok,()=>prompt('Link kopéieren:',u));else prompt('Link kopéieren:',u);return;}
+  const go=e.target.closest('a.go');
+  if(go&&!navApp()){e.preventDefault();navPick(go.dataset.a);return;}
+  if(e.target.id==='navset'){navPick('');return;}
   const pe=e.target.closest('[data-site]');
   if(pe){editPlace(pe.dataset.site);return;}
   if(e.target.id==='beyond'){S.beyond=!S.beyond;applyLimit();render();return;}
