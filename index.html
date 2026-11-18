@@ -340,7 +340,7 @@ const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='M
 const dest=a=>{const c=coords(a);return c?c.lat+','+c.lon:a;};
 const NAV={waze:{name:'Waze',url:a=>{const c=coords(a);return 'https://waze.com/ul?'+(c?'ll='+c.lat+','+c.lon:'q='+encodeURIComponent(a))+'&navigate=yes';}},
   google:{name:'Google Maps',url:a=>'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dest(a))},
-  apple:{name:'Apple Plans',url:a=>'https://maps.apple.com/?daddr='+encodeURIComponent(dest(a))}};
+  apple:{name:'Apple Maps',url:a=>'https://maps.apple.com/?daddr='+encodeURIComponent(dest(a))}};
 const navApp=()=>NAV[LS.get('nav')]?LS.get('nav'):'';
 const navUrl=a=>NAV[navApp()||(isIOS?'apple':'google')].url(a);
 const navKeys=()=>isIOS?['waze','apple','google']:['waze','google']; // Apple Plans only on iPhone/iPad
