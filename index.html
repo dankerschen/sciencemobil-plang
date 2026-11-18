@@ -18,10 +18,10 @@
 @media(prefers-color-scheme:dark){:root{--head:#00262A;--bg:#011719;--card:#08292C;--ink:#F3F3F1;--mute:#9DB0AE;--line:#1A3F43;--accent:#A9D9AE;--accent-ink:#00262A;--soft:#123A35;--warn:#FC6365;--warn-bg:#3A1718;--today:#211F3A;--today-line:#C6C1EE}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 area,Candara,"Segoe UI",-apple-system,BlinkMacSystemFont,Roboto,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
 header{position:sticky;top:0;z-index:5;background:var(--head);color:var(--head-ink);padding:calc(env(safe-area-inset-top) + 8px) 12px 10px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-h1{font-size:17px;margin:0;display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.02em}
+h1{font-size:17px;margin:0;white-space:nowrap;display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.02em}
 h1 img{width:30px;height:30px;border-radius:8px;box-shadow:0 0 0 1px rgba(255,255,253,.25)}
 #status{font-size:12px;color:rgba(255,255,253,.7)}
 #status.off{color:#FC6365}
@@ -87,6 +87,10 @@ body.out .tabs,body.out #q,body.out #refresh{display:none}
 .cal{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 12px;margin:8px 0}
 .calbtns{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 6px}
 .calbtns .icon{text-decoration:none;color:var(--ink);font-size:13px}
+.pin{border:1px dashed var(--line);background:none;border-radius:8px;padding:1px 7px;margin-left:6px;font-size:12px;color:var(--mute);cursor:pointer}
+.addr{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:14px}
+.addr a{font-weight:600;text-decoration:none;border-bottom:1px solid currentColor}
+.addr .link{font-size:12px;color:var(--mute)}
 .notice{border:1px dashed var(--line);border-radius:12px;padding:8px 12px;margin:8px 0;font-size:13px;color:var(--mute)}
 .notice.hol{border:1px solid var(--accent);background:var(--soft);color:var(--accent);font-weight:600}
 .notice.warn{border:1px solid var(--warn);background:var(--warn-bg);color:var(--warn)}
@@ -94,7 +98,7 @@ body.out .tabs,body.out #q,body.out #refresh{display:none}
 </head>
 <body>
 <header>
-  <div class="top"><h1><img src="icon.svg" alt="">ScienceMobil-Plang</h1><button class="icon" id="refresh" aria-label="Aktualiséieren">↻ Aktualiséieren</button></div>
+  <div class="top"><h1><img src="icon.svg" alt="">ScienceMobil-Plang</h1><button class="icon" id="refresh" aria-label="Aktualiséieren" title="Aktualiséieren">↻</button></div>
   <div id="status">Lueden…</div>
   <nav class="chips" id="chips"></nav>
   <div class="tabs"><button class="tab" data-v="agenda">Mäin Agenda</button><button class="tab" data-v="team">Team-Woch</button></div>
@@ -309,6 +313,29 @@ if(!S.view)S.view=S.guide?'agenda':'team';
 /* ---- login: each guide has their own password (set by Dan as a Cloudflare secret) ---- */
 const LS={get:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},set:(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}},del:k=>{try{localStorage.removeItem(k);}catch(e){}}};
 S.pw=LS.get('pw')||'';S.me=LS.get('me')||'';
+/* site addresses, entered by any guide and shared through the worker: {"<site lower case>": {a, by, at}} */
+try{S.places=JSON.parse(LS.get('places')||'{}')||{};}catch(e){S.places={};}
+const placeKey=t=>String(t).trim().toLowerCase().replace(/\s+/g,' ');
+const placeOf=site=>site&&S.places[placeKey(site)];
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+// opens navigation to the address: Apple Maps on iPhone, Google Maps elsewhere
+const navUrl=a=>isIOS?'https://maps.apple.com/?daddr='+encodeURIComponent(a):'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(a);
+function setPlaces(p){if(p&&typeof p==='object'){S.places=p;LS.set('places',JSON.stringify(p));}}
+async function savePlace(site,address){
+  const r=await fetch(CONFIG.apiBase+'api/place',{method:'POST',headers:{authorization:'Bearer '+S.pw,'content-type':'application/json'},body:JSON.stringify({site,address})});
+  if(!r.ok)throw new Error(r.status===401?'auth':'net');
+  setPlaces((await r.json()).places);
+}
+async function editPlace(site){
+  const cur=(placeOf(site)||{}).a||'';
+  const v=prompt(`Adress fir „${site}“ (fir jiddereen).
+Z. B. Rue de l’École 1, L-1234 Uertschaft. Eidel loossen fir ze läschen.`,cur);
+  if(v===null)return;const a=v.replace(/\s+/g,' ').trim();
+  if(a===cur)return;
+  if(!a&&!confirm('Adress läschen?'))return;
+  try{await savePlace(site,a);render();}
+  catch(e){alert('Konnt net gespäichert ginn. Sinn ech online? Probéier méi spéit nach eng Kéier.');}
+}
 // asks the worker for the sheet; returns {guide,csv}, or throws 'auth' (wrong password) / 'net' (offline, server down)
 async function fetchData(pw){
   const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);
@@ -336,13 +363,13 @@ async function login(pw){
     await load(true,d);scrollToToday();}
   catch(e){showLogin(e.message==='auth'?'D’Passwuert stëmmt net.':'Keng Verbindung. Probéier méi spéit nach eng Kéier.');}
 }
-function logout(){['pw','me','csv','csvAt','guide'].forEach(LS.del);S.pw='';S.me='';S.model=null;S.guide='';showLogin('');}
+function logout(){['pw','me','csv','csvAt','guide','places'].forEach(LS.del);S.places={};S.pw='';S.me='';S.model=null;S.guide='';showLogin('');}
 async function load(force,pre){
   if(!S.pw){if(!document.querySelector('#login'))showLogin('');return;} // don't wipe a half-typed password on refresh/focus
   if(!force&&Date.now()-S.fetchedAt<60000&&S.model)return;
   $('#status').textContent='Aktualiséieren…';$('#status').className='';
   let text=null;
-  try{const d=pre||await fetchData(S.pw);text=d.csv;S.me=d.guide;LS.set('me',d.guide);}
+  try{const d=pre||await fetchData(S.pw);text=d.csv;S.me=d.guide;LS.set('me',d.guide);setPlaces(d.places);}
   catch(e){if(e.message==='auth'){logout();showLogin('D’Passwuert gëllt net méi. Frë den Dan no deem neien.');return;}}
   if(text){S.offline=false;S.fetchedAt=Date.now();LS.set('csv',text);LS.set('csvAt',String(S.fetchedAt));}
   else{text=LS.get('csv');S.offline=true;S.fetchedAt=+LS.get('csvAt')||0;}
@@ -415,12 +442,14 @@ function dayHtml(m,day,g,today){
   const q=S.q;
   const free=!d.mine&&!leave;
   let h=`<div class="day ${day.date===today?'today':''} ${free?'free':''}"><div class="dh"><b>${fmtDay(day.date)}</b><span>`;
-  if(hasSess&&site)h+=`<span class="site">${esc(site)}</span>`;
+  const place=hasSess&&site&&placeOf(site);
+  if(hasSess&&site)h+=`<span class="site">${esc(site)}</span>${place?'':`<button class="pin" data-site="${esc(site)}" title="Adress derbäisetzen">📍 Adress?</button>`}`;
   if(leave)h+=`<span class="tag warn">${esc(d.cg.map(c=>c.text).join(', '))}</span>`;
   if(holiday(day.date)&&!day.sessions.length&&!day.events.length)h+=`<span class="tag">${esc(holiday(day.date))}</span>`;
   if(day.setup&&teamOn)h+=`<span class="tag">Opriichten</span>`;
   if(day.teardown&&teamOn)h+=`<span class="tag">Ofriichten</span>`;
   h+=`</span></div>`;
+  if(place)h+=`<div class="addr">📍 <a href="${esc(navUrl(place.a))}" target="_blank" rel="noopener">${esc(place.a)}</a><button class="link" data-site="${esc(site)}" title="Adress änneren">änneren</button></div>`;
   if(free){return h+`<div class="meta">${day.sessions.length?'Net agedeelt':'–'}</div></div>`;}
   for(const x of d.s.filter(x=>matchQ(x,q)))h+=sessHtml(x);
   for(const e of d.ev)h+=`<div class="ev"><b>${esc(e.start)}${e.end&&e.end!==e.start?'–'+esc(e.end):''}</b> ${esc(e.title)}</div>`;
@@ -561,6 +590,8 @@ document.addEventListener('click',e=>{
   if(e.target.id==='copyics'){const b=e.target,u=b.dataset.u;
     const ok=()=>{b.textContent='Kopéiert ✓';setTimeout(()=>{b.textContent='Link kopéieren';},2000);};
     if(navigator.clipboard)navigator.clipboard.writeText(u).then(ok,()=>prompt('Link kopéieren:',u));else prompt('Link kopéieren:',u);return;}
+  const pe=e.target.closest('[data-site]');
+  if(pe){editPlace(pe.dataset.site);return;}
   if(e.target.id==='beyond'){S.beyond=!S.beyond;applyLimit();render();return;}
   const td=e.target.closest('td.c');
   if(td){S.guide=td.dataset.g;localStorage.setItem('guide',S.guide);S.view='agenda';localStorage.setItem('view','agenda');render();
