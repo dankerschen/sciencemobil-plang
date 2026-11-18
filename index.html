@@ -315,7 +315,7 @@ const LS={get:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},se
 S.pw=LS.get('pw')||'';S.me=LS.get('me')||'';
 /* site addresses, entered by any guide and shared through the worker: {"<site lower case>": {a, by, at}} */
 try{S.places=JSON.parse(LS.get('places')||'{}')||{};}catch(e){S.places={};}
-const placeKey=t=>String(t).trim().toLowerCase().replace(/\s+/g,' ');
+const placeKey=t=>String(t).normalize('NFC').trim().toLowerCase().replace(/\s+/g,' ');
 const placeOf=site=>site&&S.places[placeKey(site)];
 const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 // opens navigation to the address: Apple Maps on iPhone, Google Maps elsewhere
