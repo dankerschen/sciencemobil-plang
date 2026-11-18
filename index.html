@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="lb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Guiden-Planung">
+<meta name="theme-color" content="#1f5f4a">
+<title>Guiden-Planung 2026/27</title>
+<style>
+:root{--bg:#f4f6f5;--card:#fff;--ink:#17211d;--mute:#66736d;--line:#dde4e0;--accent:#1f5f4a;--accent-ink:#fff;--soft:#e3efe9;--warn:#b4531a;--warn-bg:#fbeadd;--today:#fff6d6}
+@media(prefers-color-scheme:dark){:root{--bg:#101513;--card:#1a211e;--ink:#e8eeea;--mute:#93a19a;--line:#2b3631;--accent:#4fb08a;--accent-ink:#06130d;--soft:#1f2f28;--warn:#f0a572;--warn-bg:#3a2417;--today:#3a3515}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+h1{font-size:18px;margin:0}
+#status{font-size:12px;color:var(--mute)}
+#status.off{color:var(--warn)}
+button{font:inherit;color:inherit}
+.icon{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:6px 12px;cursor:pointer}
+.icon:disabled{opacity:.3;cursor:default}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:8px 0 4px;-webkit-overflow-scrolling:touch}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:600}
+.chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.tabs{display:flex;gap:6px;margin-top:4px}
+.tab{flex:1;border:1px solid var(--line);background:var(--card);padding:7px;border-radius:10px;cursor:pointer}
+.tab.on{background:var(--soft);border-color:var(--accent);font-weight:600}
+#q{width:100%;margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit}
+main{padding:10px 12px 40px;max-width:760px;margin:0 auto}
+.wk{margin:16px 0 6px;font-weight:700;display:flex;justify-content:space-between;align-items:baseline}
+.wk small{color:var(--mute);font-weight:500}
+.day{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0}
+.day.today{background:var(--today);border-color:var(--warn)}
+.day.free{opacity:.55;padding:6px 12px}
+.dh{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.dh b{font-size:15px}
+.site{color:var(--accent);font-weight:600}
+.tag{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 6px;margin-left:4px;background:var(--soft);color:var(--accent)}
+.tag.warn{background:var(--warn-bg);color:var(--warn)}
+.sess{display:flex;gap:10px;border-top:1px solid var(--line);padding:8px 0}
+.sess:first-of-type{margin-top:6px}
+.time{flex:0 0 74px;font-variant-numeric:tabular-nums;font-weight:700}
+.time span{display:block;font-weight:400;color:var(--mute)}
+.thema{font-weight:600}
+.meta{color:var(--mute);font-size:13px}
+.teach{margin-top:2px}
+.note{font-size:13px;color:var(--mute);margin-top:3px}
+.ev{border-top:1px solid var(--line);padding:6px 0;font-size:14px}
+.notes{font-size:13px;color:var(--mute);margin-top:6px}
+.notes div{margin-top:2px}
+details{margin-top:6px;font-size:13px}
+summary{cursor:pointer;color:var(--accent)}
+a{color:var(--accent)}
+.empty{color:var(--mute);text-align:center;padding:30px 0}
+.past{width:100%;margin:10px 0;border:1px dashed var(--line);background:none;border-radius:10px;padding:8px;color:var(--mute);cursor:pointer}
+table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px}
+th,td{border:1px solid var(--line);padding:5px 4px;vertical-align:top;background:var(--card)}
+th{background:var(--soft)}
+td.me{outline:2px solid var(--accent);outline-offset:-2px}
+td.lv{background:var(--warn-bg);color:var(--warn)}
+td.g,th.g{width:44px;font-weight:700;text-align:center}
+td.c{cursor:pointer}
+.wkbar{display:flex;align-items:center;justify-content:space-between;margin:10px 0}
+body.out .tabs,body.out #q,body.out #refresh{display:none}
+.login{max-width:340px;margin:40px auto;display:flex;flex-direction:column;gap:10px}
+.login h2{margin:0 0 6px;font-size:20px}
+.login input{padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;font-size:16px}
+.login .icon{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);padding:10px;font-weight:600}
+.err{color:var(--warn);font-weight:600}
+.foot{text-align:center;color:var(--mute);font-size:13px;margin-top:24px}
+.link{background:none;border:none;color:var(--accent);text-decoration:underline;cursor:pointer;padding:0}
+.cal{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:8px 12px;margin:8px 0}
+.calbtns{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 6px}
+.calbtns .icon{text-decoration:none;color:var(--ink);font-size:13px}
+.notice{border:1px dashed var(--line);border-radius:12px;padding:8px 12px;margin:8px 0;font-size:13px;color:var(--mute)}
+.notice.hol{border:1px solid var(--accent);background:var(--soft);color:var(--accent);font-weight:600}
+.notice.warn{border:1px solid var(--warn);background:var(--warn-bg);color:var(--warn)}
+</style>
+</head>
+<body>
+<header>
+  <div class="top"><h1>Guiden-Planung</h1><button class="icon" id="refresh" aria-label="Aktualiséieren">↻ Aktualiséieren</button></div>
+  <div id="status">Lueden…</div>
+  <nav class="chips" id="chips"></nav>
+  <div class="tabs"><button class="tab" data-v="agenda">Mäin Agenda</button><button class="tab" data-v="team">Team-Woch</button></div>
+  <input id="q" type="search" placeholder="Sich no Klass, Titulaire, Schoul, Thema…" autocomplete="off">
+</header>
+<main id="app"><div class="empty">Lueden…</div></main>
+
+<script>
+/* ======================= CONFIG ======================= */
+const CONFIG = {
+  // This file is public (GitHub Pages): no data, no sheet address, no passwords in here.
+  // The data comes from the Cloudflare Worker (ics/feed.js), which checks each guide's password;
+  // the sheet address lives in wrangler.toml, the passwords are Cloudflare secrets.
+  apiBase: typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ?'http://localhost:8787/' : 'https://guiden-planung.dan-9d4.workers.dev/',
+  refreshMinutes: 5,
+  horizonMonths: 2,          // show nothing later than this many months ahead (rounded to the end of that week); 0 = no limit
+  hideGuides: ['Martine'],
+  // school year this sheet tab belongs to. After `end`, the app shows a reminder to switch to the new
+  // tab (gid above) and check the holiday list below. Update all three when the new school year starts.
+  schoolYear: { label: '2026/2027', end: '2027-09-14' },
+  // school holidays and days off, from men.public.lu/fr/vacances-scolaires.html
+  // (règlement grand-ducal du 3 juin 2026). [first day, last day, name]. Saint Nicolas left out: primary schools only.
+  holidays: [
+    ['2026-10-31','2026-11-08','Allerhellegevakanz'],
+    ['2026-12-19','2027-01-03','Chrëschtvakanz'],
+    ['2027-02-06','2027-02-14','Fuesvakanz'],
+    ['2027-03-27','2027-04-11','Ouschtervakanz'],
+    ['2027-05-01','2027-05-01','1. Mee'],
+    ['2027-05-06','2027-05-06','Christi Himmelfaart'],
+    ['2027-05-17','2027-05-17','Péngschtméindeg'],
+    ['2027-05-29','2027-06-06','Péngschtvakanz'],
+    ['2027-06-23','2027-06-23','Nationalfeierdag'],
+    ['2027-07-16','2027-09-14','Summervakanz'],
+    ['2027-10-30','2027-11-07','Allerhellegevakanz'],
+    ['2027-12-18','2028-01-02','Chrëschtvakanz'],
+    ['2028-02-12','2028-02-20','Fuesvakanz'],
+    ['2028-04-01','2028-04-16','Ouschtervakanz'],
+    ['2028-04-17','2028-04-17','Ouschterméindeg'],
+    ['2028-05-01','2028-05-01','1. Mee'],
+    ['2028-05-09','2028-05-09','Europadag'],
+    ['2028-05-25','2028-05-25','Christi Himmelfaart'],
+    ['2028-05-27','2028-06-04','Péngschtvakanz'],
+    ['2028-06-05','2028-06-05','Péngschtméindeg'],
+    ['2028-06-23','2028-06-23','Nationalfeierdag'],
+    ['2028-07-14','2028-09-14','Summervakanz'],
+    ['2028-10-28','2028-11-05','Allerhellegevakanz'],
+    ['2028-12-16','2028-12-31','Chrëschtvakanz'],
+    ['2029-01-01','2029-01-01','Neijoerschdag'],
+    ['2029-02-10','2029-02-18','Fuesvakanz'],
+    ['2029-03-31','2029-04-15','Ouschtervakanz'],
+    ['2029-05-01','2029-05-01','1. Mee'],
+    ['2029-05-09','2029-05-09','Europadag'],
+    ['2029-05-10','2029-05-10','Christi Himmelfaart'],
+    ['2029-05-19','2029-05-27','Péngschtvakanz'],
+    ['2029-07-13','2029-09-16','Summervakanz']
+  ]   // codes found in the sheet that get no button, agenda or team-grid row (case-insensitive)
+};
+
+/* ======================= CORE (pure parsing, no DOM) ======================= */
+/*CORE-START*/
+function parseCSV(text){
+  const rows=[];let row=[],cell='',q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; } else cell+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){row.push(cell);cell='';}
+    else if(c==='\n'){row.push(cell);rows.push(row);row=[];cell='';}
+    else if(c!=='\r') cell+=c;
+  }
+  if(cell!==''||row.length){row.push(cell);rows.push(row);}
+  return rows;
+}
+const norm=s=>(s||'').toString().trim().toLowerCase();
+const cellv=(r,i)=>((r[i]==null?'':r[i])+'').replace(/\s+/g,' ').trim();
+
+function mapColumns(header){
+  const find=(re,from)=>{for(let i=from||0;i<header.length;i++) if(re.test(norm(header[i]))) return i; return -1;};
+  const c={a:0,conge:1,mobil:2,r1:3,r2:4,r3:5,count:6,g1:7,g2:8,jour:9,date:10,start:11,end:12,thema:13,teacher:14,cycle:15,kids:16,tel:17,extra:18};
+  const set=(k,re)=>{const i=find(re);if(i>=0)c[k]=i;};
+  set('conge',/^cong/);set('mobil',/naturmobil/);set('r1',/^remarque 1/);set('r2',/^remarque 2/);set('r3',/^remarque 3/);
+  set('count',/activit/);set('jour',/^jour/);set('date',/^date/);set('start',/^ufank|^start|^d[eé]but/);set('end',/^enn|^fin$/);
+  set('thema',/^thema/);set('teacher',/^titulaire/);set('cycle',/^cycle/);set('kids',/^unzuel|^nombre/);set('tel',/^telefon|^t[eé]l/);
+  const g=find(/^guide/);
+  if(g>=0){c.g1=g;const g2=find(/^guide/,g+1);if(g2>=0)c.g2=g2;}
+  return c;
+}
+
+function times(startS,endS){
+  const pick=s=>{const out=[];const re=/(\d{1,2})\s*(?:h|:)\s*(\d{2})?/gi;let m;while((m=re.exec(s||''))){out.push(String(m[1]).padStart(2,'0')+':'+(m[2]||'00'));}return out;};
+  const a=pick(startS),b=pick(endS);
+  return {start:a[0]||'',end:b[0]||a[1]||''};
+}
+const isStatus=l=>/planning|plang|datum|period|dates confirm|provisoresch|expobooking|^egal$/i.test(l)||/^\d{1,2}[\/.]\d{1,2}\s*:/.test(l);
+const cleanTitle=t=>t.replace(/\s+\d.*$/,'').replace(/[*]+/g,'').trim()||t;
+const isCode=v=>/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.\-]{1,14}$/.test(v)&&!/^(op|of|of\/op|cong[eé])$/i.test(v);
+const MARKER=/^(of\s*\/\s*op\w*|ofriichten|opriichten)\b[\s,:;-]*/i;
+
+function buildModel(rows,hide){
+  const hidden=new Set((hide||[]).map(h=>h.toLowerCase()));
+  const C=mapColumns(rows[0]||[]);
+  const rowGuides=r=>{const out=[];for(const k of ['g1','g2']){const v=cellv(r,C[k]);if(v&&isCode(v)&&!out.includes(v))out.push(v);}return out;};
+  // pass 1: which guide codes exist (canonical spelling = most frequent)
+  const counts={};
+  for(let i=1;i<rows.length;i++){ if(!/\d{1,2}\/\d{1,2}\/\d{4}/.test(cellv(rows[i],C.date)) && !cellv(rows[i],C.start)) continue;
+    for(const g of rowGuides(rows[i])){const k=g.toLowerCase();(counts[k]=counts[k]||{})[g]=(counts[k][g]||0)+1;} }
+  const canon={},total={};
+  for(const k in counts){const forms=Object.entries(counts[k]).sort((a,b)=>b[1]-a[1]);canon[k]=forms[0][0];total[k]=Object.values(counts[k]).reduce((a,b)=>a+b,0);}
+  // hidden codes stay "known" (so their sessions, congé and remarks are not mistaken for team-wide or another guide's),
+  // they are only left out of the visible guide list
+  const guides=Object.keys(canon).filter(k=>!hidden.has(k)).sort((a,b)=>total[b]-total[a]).map(k=>canon[k]);
+  const known=new Set(Object.keys(canon));
+
+  const parseRemark=t=>{ // leading guide codes => personal note
+    const toks=t.split(/[\s,+/&]+/).filter(Boolean);const codes=[];let n=0;
+    for(const tok of toks){const l=tok.toLowerCase();
+      if(known.has(l)){codes.push(canon[l]);n++;}
+      else if(tok.length===1&&codes.length){const m=[...known].filter(k=>k[0]===l);if(m.length===1){codes.push(canon[m[0]]);n++;}else break;}
+      else break;}
+    return {codes,text:t};
+  };
+  const parseConge=t=>{const m=/^([A-Za-zÀ-ÿ]{2,15})\s+(.+)$/.exec(t);
+    if(m&&known.has(m[1].toLowerCase()))return {code:canon[m[1].toLowerCase()],text:m[2]};
+    if(known.has(t.toLowerCase()))return {code:canon[t.toLowerCase()],text:'Congé'};
+    return {code:null,text:t};};
+
+  const days=new Map(),placements=[{lines:[]}];
+  let pi=0,cur=null,sawDate=false,lastG=[];
+  const dayOf=d=>{if(!days.has(d))days.set(d,{date:d,pl:pi,sessions:[],events:[],notes:[],pnotes:[],conge:[],logi:[],setup:false,teardown:false});return days.get(d);};
+
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i];
+    const dm=/(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(cellv(r,C.date));
+    if(dm){const d=`${dm[3]}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`;if(d!==cur){cur=d;lastG=[];}sawDate=true;}
+    if(!sawDate)continue;
+
+    let thema=cellv(r,C.thema),isMarker=false,cutNow=false,cutAfter=false,setup=false,teardown=false;
+    const mk=MARKER.exec(thema);
+    if(mk){isMarker=true;const w=mk[1].toLowerCase();
+      if(/^of\s*\/\s*op/.test(w)){cutNow=true;setup=true;teardown=true;}
+      else if(w==='ofriichten'){cutAfter=true;teardown=true;}
+      else setup=true;
+      thema=thema.slice(mk[0].length).trim();}
+    if(cutNow){placements.push({lines:[]});pi=placements.length-1;}
+    const a=cellv(r,C.a);
+    if(a)placements[pi].lines.push(a);
+
+    const day=dayOf(cur);
+    if(setup)day.setup=true;
+    if(teardown)day.teardown=true;
+
+    const own=rowGuides(r);
+    if(own.length)lastG=own;
+    const t=times(cellv(r,C.start),cellv(r,C.end));
+    const teacher=cellv(r,C.teacher),cycle=cellv(r,C.cycle),kids=cellv(r,C.kids);
+
+    const cg=cellv(r,C.conge);
+    if(cg){const c=parseConge(cg);if(!day.conge.some(x=>x.code===c.code&&x.text===c.text))day.conge.push(c);}
+    for(const k of ['r1','r2','r3']){const rt=cellv(r,C[k]);if(!rt)continue;
+      const p=parseRemark(rt);if(p.codes.length)day.pnotes.push(p);else day.notes.push(rt);}
+    const mob=cellv(r,C.mobil);if(mob)day.logi.push(mob);
+
+    if(isMarker){ if(thema)day.notes.push(thema); }
+    else if((teacher||cycle||kids)&&t.start){
+      day.sessions.push({start:t.start,end:t.end,thema,teacher,cycle,kids,tel:cellv(r,C.tel),extra:cellv(r,C.extra),guides:own.length?own:lastG});
+    } else if(thema||(t.start&&cellv(r,C.start).length>5)){
+      const title=thema||cellv(r,C.start);
+      if(t.start)day.events.push({start:t.start,end:t.end,title,guides:own});
+      else day.notes.push(title);
+    }
+    if(cutAfter){placements.push({lines:[]});pi=placements.length-1;}
+  }
+  for(const p of placements){
+    const ls=p.lines.filter(l=>!/_|trimester/i.test(l)&&!isStatus(l)&&!/^\d{1,3}$/.test(l));
+    p.title=ls[0]?cleanTitle(ls[0]):'';
+    p.info=ls.slice(1);
+  }
+  const list=[...days.values()].sort((x,y)=>x.date<y.date?-1:1);
+  return {days:list,placements,guides};
+}
+/*CORE-END*/
+
+/* ======================= VIEW LOGIC ======================= */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const PHONE=/(?:\+|00)?\d[\d ./-]{7,}\d/g;
+const isPhone=s=>/^(?:\+|00)?\d[\d ./-]{7,}\d$/.test(s.trim());
+const linkify=t=>esc(t).replace(PHONE,m=>`<a href="tel:${m.replace(/[^\d+]/g,'')}">${m}</a>`);
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const toDate=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d,12);};
+const mondayOf=s=>{const d=toDate(s);const w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return ymd(d);};
+const addDays=(s,n)=>{const d=toDate(s);d.setDate(d.getDate()+n);return ymd(d);};
+const WD=['Méindeg','Dënschdeg','Mëttwoch','Donneschdeg','Freideg','Samschdeg','Sonndeg'];
+const WDS=['Mé','Dë','Më','Do','Fr','Sa','So'];
+const MS=['Jan','Feb','Mäe','Abr','Mee','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+const wdi=d=>(d.getDay()+6)%7;
+const fmtDay=s=>{const d=toDate(s);return `${WD[wdi(d)]}, ${d.getDate()}. ${MS[d.getMonth()]}`;};
+const fmtShort=s=>{const d=toDate(s);return `${d.getDate()}. ${MS[d.getMonth()]}`;};
+// last visible date: today + horizonMonths, moved to the Sunday of that week
+function horizonEnd(){
+  if(!CONFIG.horizonMonths)return '9999-12-31';
+  const d=new Date();d.setHours(12,0,0,0);const day=d.getDate();
+  d.setMonth(d.getMonth()+CONFIG.horizonMonths);if(d.getDate()!==day)d.setDate(0); // 31 Dec + 2 → 28/29 Feb, not 3 Mar
+  return addDays(mondayOf(ymd(d)),6);
+}
+function isoWeek(s){const d=toDate(s);d.setDate(d.getDate()+3-((d.getDay()+6)%7));const w1=new Date(d.getFullYear(),0,4,12);return 1+Math.round(((d-w1)/864e5-3+((w1.getDay()+6)%7))/7);}
+
+const S={model:null,guide:localStorage.getItem('guide')||'',view:localStorage.getItem('view')||'',week:null,showPast:false,q:'',fetchedAt:0,offline:false};
+if(!S.view)S.view=S.guide?'agenda':'team';
+
+/* ---- login: each guide has their own password (set by Dan as a Cloudflare secret) ---- */
+const LS={get:k=>{try{return localStorage.getItem(k);}catch(e){return null;}},set:(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}},del:k=>{try{localStorage.removeItem(k);}catch(e){}}};
+S.pw=LS.get('pw')||'';S.me=LS.get('me')||'';
+// asks the worker for the sheet; returns {guide,csv}, or throws 'auth' (wrong password) / 'net' (offline, server down)
+async function fetchData(pw){
+  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),15000);
+  try{const r=await fetch(CONFIG.apiBase+'api/data',{headers:{authorization:'Bearer '+pw},signal:ctl.signal,cache:'no-store'});
+    if(r.status===401)throw new Error('auth');
+    if(!r.ok)throw new Error('net');return await r.json();}
+  catch(e){throw new Error(e.message==='auth'?'auth':'net');}
+  finally{clearTimeout(to);}
+}
+function showLogin(msg){
+  $('#chips').innerHTML='';
+  $('#status').textContent='';
+  document.body.classList.add('out'); // hide tabs and search until logged in
+  $('#app').innerHTML=`<form class="login" id="login"><h2>Guiden-Planung</h2>
+    <label for="pw">Däi Passwuert</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button class="icon" type="submit">Umellen</button>
+    ${msg?`<div class="err">${esc(msg)}</div>`:''}
+    <div class="meta">D’Passwuert kriss du vum Dan. Et bleift op dësem Handy gespäichert.</div></form>`;
+}
+async function login(pw){
+  try{const d=await fetchData(pw);
+    S.pw=pw;S.me=d.guide;LS.set('pw',pw);LS.set('me',d.guide);
+    S.guide=d.guide;LS.set('guide',d.guide);S.view='agenda';LS.set('view','agenda');
+    await load(true,d);scrollToToday();}
+  catch(e){showLogin(e.message==='auth'?'D’Passwuert stëmmt net.':'Keng Verbindung. Probéier méi spéit nach eng Kéier.');}
+}
+function logout(){['pw','me','csv','csvAt','guide'].forEach(LS.del);S.pw='';S.me='';S.model=null;S.guide='';showLogin('');}
+async function load(force,pre){
+  if(!S.pw){if(!document.querySelector('#login'))showLogin('');return;} // don't wipe a half-typed password on refresh/focus
+  if(!force&&Date.now()-S.fetchedAt<60000&&S.model)return;
+  $('#status').textContent='Aktualiséieren…';$('#status').className='';
+  let text=null;
+  try{const d=pre||await fetchData(S.pw);text=d.csv;S.me=d.guide;LS.set('me',d.guide);}
+  catch(e){if(e.message==='auth'){logout();showLogin('D’Passwuert gëllt net méi. Frë den Dan no deem neien.');return;}}
+  if(text){S.offline=false;S.fetchedAt=Date.now();LS.set('csv',text);LS.set('csvAt',String(S.fetchedAt));}
+  else{text=LS.get('csv');S.offline=true;S.fetchedAt=+LS.get('csvAt')||0;}
+  if(!text){$('#status').textContent='D’Tabell konnt net geluede ginn an et ass nach näischt gespäichert.';$('#status').className='off';return;}
+  try{S.full=buildModel(parseCSV(text),CONFIG.hideGuides);S.horizon=horizonEnd();
+    // last day with a session that already has a guide (anyone); beyond the horizon this is only shown on request
+    S.lastPlanned=S.full.days.filter(d=>d.sessions.some(s=>s.guides.length)).map(d=>d.date).pop()||'';
+    applyLimit();}catch(e){$('#status').textContent='D’Layout vun der Tabell konnt net gelies ginn: '+e.message;$('#status').className='off';return;}
+  if(S.guide&&!S.model.guides.some(g=>g.toLowerCase()===S.guide.toLowerCase()))S.guide='';
+  render();
+}
+// S.model = S.full cut at the horizon, or at the last planned day when the viewer chose "Méi wäit kucken"
+function applyLimit(){
+  const lim=S.beyond&&S.lastPlanned>S.horizon?S.lastPlanned:S.horizon;
+  S.model={...S.full,days:S.full.days.filter(d=>d.date<=lim)};
+}
+const weekDays=(m,wk)=>m.days.filter(d=>d.date>=wk&&d.date<=addDays(wk,4));
+const teamOff=day=>day.conge.some(c=>!c.code);
+const holiday=ds=>{const h=(CONFIG.holidays||[]).find(([a,b])=>ds>=a&&ds<=b);return h?h[2]:'';};
+// name of the school holiday if all of Mon-Fri are holiday AND the sheet has nothing planned that week, else ''.
+// The sheet always wins: any session or event in the week means it is shown normally, without a holiday banner.
+const holidayWeek=wk=>{const n=[0,1,2,3,4].map(i=>holiday(addDays(wk,i)));if(!n.every(Boolean))return '';
+  if(S.full&&weekDays(S.full,wk).some(d=>d.sessions.length||d.events.length))return '';
+  return [...new Set(n)].join(' / ');};
+// a week whose planning is not finished: no session with a guide yet, and not a holiday/day-off on every weekday
+const unfinished=wk=>{const ds=weekDays(S.full,wk);
+  if(ds.some(d=>d.sessions.some(s=>s.guides.length)))return false;
+  const off=[0,1,2,3,4].filter(i=>{const x=addDays(wk,i);return (holiday(x)&&!ds.some(d=>d.date===x&&(d.sessions.length||d.events.length)))||ds.some(d=>d.date===x&&teamOff(d));}).length;
+  return off<5;};
+const NOT_DONE=`<div class="notice">D’Planung fir dës Woch ass nach net fäerdeg.</div>`;
+const HOL_NOTE=n=>`<div class="notice hol">Schoulvakanz: ${esc(n)}</div>`;
+const NOT_FIX=`<div class="notice warn">Méi wéi ${CONFIG.horizonMonths} Méint am Viraus: dës Planung ass nach net fix a kann nach änneren.</div>`;
+function setStatus(){
+  const el=$('#status');const f=S.fetchedAt?new Date(S.fetchedAt):null;const t=f?`${f.getDate()}. ${MS[f.getMonth()]}, ${pad(f.getHours())}:${pad(f.getMinutes())}`:'nie';
+  el.textContent=S.offline?`Offline – gespäichert Donnéeën vum ${t}`:`Aktualiséiert: ${t}`;el.className=S.offline?'off':'';
+}
+
+function dayFor(day,g){
+  const gl=g.toLowerCase(),has=a=>a.some(x=>x.toLowerCase()===gl);
+  const s=day.sessions.filter(x=>has(x.guides));
+  const ev=day.events.filter(e=>!e.guides.length||has(e.guides));
+  const pn=day.pnotes.filter(p=>has(p.codes));
+  const cg=day.conge.filter(c=>!c.code||c.code.toLowerCase()===gl);
+  const mine=s.length>0||pn.length>0||cg.some(c=>c.code)||day.events.some(e=>has(e.guides));
+  return {s,ev,pn,cg,mine};
+}
+const siteOf=(m,day)=>(m.placements[day.pl]&&m.placements[day.pl].title)||'';
+const matchQ=(x,q)=>!q||JSON.stringify(x).toLowerCase().includes(q);
+
+function sessHtml(x){
+  const bits=[];
+  if(x.cycle)bits.push(`<b>${esc(x.cycle)}</b>`);
+  if(x.kids)bits.push(esc(x.kids)+' Kanner');
+  let phone='',lang='';
+  if(x.tel){if(isPhone(x.tel))phone=x.tel;else lang=x.tel;}
+  if(lang)bits.push(esc(lang));
+  return `<div class="sess"><div class="time">${esc(x.start)}<span>${esc(x.end)}</span></div><div>
+    <div class="thema">${esc(x.thema||'Aktivitéit')}</div>
+    <div class="meta">${bits.join(' · ')}</div>
+    ${x.teacher?`<div class="teach">${linkify(x.teacher)}</div>`:''}
+    ${phone?`<div class="teach">📞 ${linkify(phone)}</div>`:''}
+    ${x.extra?`<div class="note">${linkify(x.extra)}</div>`:''}
+  </div></div>`;
+}
+function dayHtml(m,day,g,today){
+  const d=dayFor(day,g),site=siteOf(m,day);
+  const teamOn=d.mine||day.sessions.length>0;
+  const hasSess=d.s.length>0;
+  const leave=d.cg.length>0;
+  const q=S.q;
+  const free=!d.mine&&!leave;
+  let h=`<div class="day ${day.date===today?'today':''} ${free?'free':''}"><div class="dh"><b>${fmtDay(day.date)}</b><span>`;
+  if(hasSess&&site)h+=`<span class="site">${esc(site)}</span>`;
+  if(leave)h+=`<span class="tag warn">${esc(d.cg.map(c=>c.text).join(', '))}</span>`;
+  if(holiday(day.date)&&!day.sessions.length&&!day.events.length)h+=`<span class="tag">${esc(holiday(day.date))}</span>`;
+  if(day.setup&&teamOn)h+=`<span class="tag">Opriichten</span>`;
+  if(day.teardown&&teamOn)h+=`<span class="tag">Ofriichten</span>`;
+  h+=`</span></div>`;
+  if(free){return h+`<div class="meta">${day.sessions.length?'Net agedeelt':'–'}</div></div>`;}
+  for(const x of d.s.filter(x=>matchQ(x,q)))h+=sessHtml(x);
+  for(const e of d.ev)h+=`<div class="ev"><b>${esc(e.start)}${e.end&&e.end!==e.start?'–'+esc(e.end):''}</b> ${esc(e.title)}</div>`;
+  const notes=[...d.pn.map(p=>p.text),...(teamOn?day.notes:[]),...(teamOn?day.logi:[])];
+  if(notes.length)h+=`<div class="notes">${notes.map(n=>`<div>• ${linkify(n)}</div>`).join('')}</div>`;
+  const pl=m.placements[day.pl];
+  if(hasSess&&pl&&pl.info.length)h+=`<details><summary>Kontakt &amp; Zougang um Site</summary>${pl.info.map(l=>`<div>${linkify(l)}</div>`).join('')}</details>`;
+  return h+`</div>`;
+}
+
+// "add my calendar to the phone": subscribe links for the selected guide's feed
+// the feed link contains the guide's own password, so it is only offered for the logged-in guide
+const icsUrl=()=>S.pw?CONFIG.apiBase+'cal/'+encodeURIComponent(S.pw)+'.ics':'';
+function calBlock(g){
+  if(!S.me||g.toLowerCase()!==S.me.toLowerCase())return '';
+  const u=icsUrl();if(!u)return '';
+  const webcal=u.replace(/^https?:/,'webcal:');
+  const google='https://calendar.google.com/calendar/render?cid='+encodeURIComponent(webcal);
+  return `<details class="cal"><summary>📅 Mäi Kalenner op den Handy (${esc(g)})</summary>
+    <div class="calbtns"><a class="icon" href="${esc(webcal)}">iPhone / Outlook: abonnéieren</a>
+    <a class="icon" href="${esc(google)}" target="_blank" rel="noopener">Android / Google Kalenner</a>
+    <button class="icon" id="copyics" data-u="${esc(u)}">Link kopéieren</button></div>
+    <div class="meta">Eemol abonnéieren: de Kalenner aktualiséiert sech dann eleng (meeschtens all puer Stonnen). Weist déi nächst ${CONFIG.horizonMonths} Méint, ouni Garantie: kuck am Zweifel hei an der App.</div></details>`;
+}
+function renderAgenda(){
+  const m=S.model,g=S.guide,today=ymd(new Date());
+  if(!g){return `<div class="empty">Wiel uewen däi Kürzel, fir däin Agenda ze gesinn.</div>`;}
+  const weeks=new Map();
+  for(const day of m.days){const dd=dayFor(day,g);
+    if(!(dd.mine||day.sessions.length))continue;
+    const wk=mondayOf(day.date);if(!weeks.has(wk))weeks.set(wk,{wk,days:new Map(),mine:false});
+    const w=weeks.get(wk);w.days.set(day.date,day);if(dd.mine)w.mine=true;}
+  const thisWk=mondayOf(today);
+  // from this week to the horizon, add weeks whose planning is not finished, so they show a note instead of disappearing
+  // holiday weeks show their name instead
+  for(let wk=thisWk;wk<=S.horizon;wk=addDays(wk,7)){
+    const hol=holidayWeek(wk),open=!hol&&unfinished(wk);
+    if(hol||open){if(!weeks.has(wk))weeks.set(wk,{wk,days:new Map(),mine:true});const w=weeks.get(wk);w.mine=true;w.open=true;w.hol=hol;w.undone=open;}}
+  const all=[...weeks.values()].filter(w=>w.mine).sort((a,b)=>a.wk<b.wk?-1:1);
+  // anything for this guide already planned after the horizon?
+  const later=S.full.days.some(d=>d.date>S.horizon&&dayFor(d,g).s.length);
+  const laterBtn=later?(S.beyond
+    ?`<button class="past" id="beyond">Nëmmen déi nächst ${CONFIG.horizonMonths} Méint weisen</button>`
+    :`<button class="past" id="beyond">Méi wäit kucken: no dem ${fmtShort(S.horizon)} ass schonn eppes fir ${esc(g)} agedroen (nach net fix, kann nach änneren)</button>`):'';
+  if(!all.length)return calBlock(g)+`<div class="empty">Fir ${esc(g)} ass nach näischt agedroen.</div>`+laterBtn;
+  const past=all.filter(w=>addDays(w.wk,6)<today),rest=all.filter(w=>addDays(w.wk,6)>=today);
+  const vis=S.showPast?all:rest;
+  let h=calBlock(g);
+  if(past.length&&!S.showPast)h+=`<button class="past" id="showpast">${past.length} vergaange ${past.length>1?'Wochen':'Woch'} weisen</button>`;
+  for(const w of vis){
+    let bits=[];
+    h+=`<div class="wk" data-wk="${w.wk}"><span>Woch ${isoWeek(w.wk)}${w.wk===thisWk?' · dës Woch':''}</span><small>${fmtShort(w.wk)} – ${fmtShort(addDays(w.wk,4))}</small></div>`;
+    if(w.wk>S.horizon)h+=NOT_FIX;
+    if(w.hol)h+=HOL_NOTE(w.hol);
+    else if(w.undone)h+=NOT_DONE;
+    for(let i=0;i<7;i++){
+      const ds=addDays(w.wk,i);const day=m.days.find(x=>x.date===ds);
+      if(!day){ if(i<5&&!w.open)h+=`<div class="day free"><div class="dh"><b>${fmtDay(ds)}</b>${holiday(ds)?`<span class="tag">${esc(holiday(ds))}</span>`:''}</div><div class="meta">–</div></div>`; continue;}
+      const dd=dayFor(day,g);
+      if(i>=5&&!dd.mine)continue;
+      if(w.open&&!dd.mine&&!teamOff(day))continue; // unfinished week: only days that carry something (leave, notes for this guide)
+      h+=dayHtml(m,day,g,today);
+    }
+  }
+  return h+laterBtn;
+}
+
+// team grid: ▶ stops at the horizon, or at the last planned week if something is already assigned beyond it
+const teamLimit=()=>S.lastPlanned>S.horizon?addDays(mondayOf(S.lastPlanned),6):S.horizon;
+function renderTeam(){
+  const m=S.full,today=ymd(new Date());
+  if(!S.week){
+    const w=mondayOf(today);S.week=w;
+  }
+  const wk=S.week;
+  let h=`<div class="wkbar"><button class="icon" id="pw">◀</button><b>Woch ${isoWeek(wk)} · ${fmtShort(wk)} – ${fmtShort(addDays(wk,4))}</b><button class="icon" id="nw"${addDays(wk,7)>teamLimit()?' disabled':''}>▶</button></div>`;
+  if(holidayWeek(wk))h+=HOL_NOTE(holidayWeek(wk));
+  if(wk>S.horizon)h+=NOT_FIX;
+  else if(!holidayWeek(wk)&&wk>=mondayOf(today)&&unfinished(wk))h+=NOT_DONE;
+  h+=`<table><tr><th class="g"></th>${[0,1,2,3,4].map(i=>`<th>${WDS[i]}<br>${toDate(addDays(wk,i)).getDate()}</th>`).join('')}</tr>`;
+  for(const g of m.guides){
+    h+=`<tr><td class="g">${esc(g)}</td>`;
+    for(let i=0;i<5;i++){
+      const ds=addDays(wk,i);const day=m.days.find(x=>x.date===ds);
+      let c='–',cls='c';
+      if(day){const d=dayFor(day,g);
+        if(d.cg.some(x=>x.code))cls+=' lv',c=esc(d.cg.find(x=>x.code).text);
+        else if(d.s.length){const st=d.s.map(x=>x.start).sort()[0],en=d.s.map(x=>x.end).sort().slice(-1)[0];c=`<b>${esc(siteOf(m,day)||'?')}</b><br>${d.s.length}× ${esc(st)}–${esc(en)}`;}
+        else if(d.mine)c='Evenement';}
+      if(c==='–'&&holiday(ds))c=`<span class="meta">${esc(holiday(ds))}</span>`;
+      if(g.toLowerCase()===S.guide.toLowerCase())cls+=' me';
+      h+=`<td class="${cls}" data-g="${esc(g)}" data-d="${ds}">${c}</td>`;
+    }
+    h+='</tr>';
+  }
+  h+='</table><div class="meta" style="margin-top:8px">Tipp op eng Zell, fir den Agenda vun deem Guide opzemaachen.</div>';
+  if(addDays(wk,7)>S.horizon&&S.lastPlanned>S.horizon&&wk<=S.horizon)
+    h+=`<div class="meta" style="margin-top:4px">No dem ${fmtShort(S.horizon)} ass schonn eppes agedroen: mat ▶ weiderkucken (nach net fix, kann nach änneren).</div>`;
+  const un=m.days.filter(d=>d.date>=wk&&d.date<=addDays(wk,4)).flatMap(d=>d.sessions.filter(s=>!s.guides.length).map(s=>({d:d.date,s})));
+  if(un.length)h+=`<div class="notes"><b>Aktivitéite ouni Guide:</b>${un.map(u=>`<div>• ${fmtDay(u.d)} ${esc(u.s.start)} ${esc(u.s.thema)} ${esc(u.s.cycle)}</div>`).join('')}</div>`;
+  return h;
+}
+
+// new school year (or holiday list no longer covers the shown period): remind to update the app
+function yearReminder(){
+  const today=ymd(new Date()),sy=CONFIG.schoolYear||{};
+  const lastHol=(CONFIG.holidays||[]).map(h=>h[1]).sort().pop()||'';
+  const newYear=sy.end&&today>sy.end,noHol=lastHol<S.horizon;
+  if(!newYear&&!noHol)return '';
+  return `<div class="notice warn">Erënnerung: ${newYear?`d’Schouljoer ${esc(sy.label)} ass eriwwer. An der App nach déi nei Tabell an `:'An der App nach '}d’Schoulvakanzen fir dat neit Schouljoer androen (men.public.lu/fr/vacances-scolaires.html).</div>`;
+}
+function render(){
+  const m=S.model;if(!m)return;
+  document.body.classList.remove('out');
+  setStatus();
+  $('#chips').innerHTML=m.guides.map(g=>`<button class="chip ${g.toLowerCase()===S.guide.toLowerCase()?'on':''}" data-g="${esc(g)}">${esc(g)}</button>`).join('');
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.v===S.view));
+  const y=window.scrollY;
+  $('#app').innerHTML=yearReminder()+(S.view==='team'?renderTeam():renderAgenda())+
+    (S.me?`<div class="foot">Ugemellt als ${esc(S.me)} · <button class="link" id="logout">Ofmellen</button></div>`:'');
+  window.scrollTo(0,y);
+}
+function scrollToToday(){
+  const today=ymd(new Date());const wk=document.querySelector(`.wk[data-wk="${mondayOf(today)}"]`)||document.querySelector('.wk');
+  if(wk)wk.scrollIntoView({block:'start'});
+}
+
+document.addEventListener('click',e=>{
+  const chip=e.target.closest('.chip');
+  if(chip){S.guide=chip.dataset.g===S.guide?'':chip.dataset.g;localStorage.setItem('guide',S.guide);if(S.guide&&S.view==='team'&&false){}render();return;}
+  const tab=e.target.closest('.tab');
+  if(tab){S.view=tab.dataset.v;localStorage.setItem('view',S.view);render();if(S.view==='agenda')scrollToToday();return;}
+  if(e.target.id==='refresh'){load(true);return;}
+  if(e.target.id==='showpast'){S.showPast=true;render();return;}
+  if(e.target.id==='pw'){S.week=addDays(S.week,-7);render();return;}
+  if(e.target.id==='nw'){if(addDays(S.week,7)<=teamLimit())S.week=addDays(S.week,7);render();return;}
+  if(e.target.id==='logout'){if(confirm('Op dësem Handy ofmellen?'))logout();return;}
+  if(e.target.id==='copyics'){const b=e.target,u=b.dataset.u;
+    const ok=()=>{b.textContent='Kopéiert ✓';setTimeout(()=>{b.textContent='Link kopéieren';},2000);};
+    if(navigator.clipboard)navigator.clipboard.writeText(u).then(ok,()=>prompt('Link kopéieren:',u));else prompt('Link kopéieren:',u);return;}
+  if(e.target.id==='beyond'){S.beyond=!S.beyond;applyLimit();render();return;}
+  const td=e.target.closest('td.c');
+  if(td){S.guide=td.dataset.g;localStorage.setItem('guide',S.guide);S.view='agenda';localStorage.setItem('view','agenda');render();
+    const w=document.querySelector(`.wk[data-wk="${mondayOf(td.dataset.d)}"]`);if(w)w.scrollIntoView({block:'start'});}
+});
+document.addEventListener('submit',e=>{if(e.target.id!=='login')return;e.preventDefault();
+  const pw=$('#pw').value.trim();if(!pw)return;
+  $('#status').textContent='Umellen…';login(pw);});
+$('#q').addEventListener('input',e=>{S.q=e.target.value.trim().toLowerCase();render();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)load(false);});
+setInterval(()=>{if(!document.hidden)load(true);},CONFIG.refreshMinutes*60000);
+load(true).then(()=>{if(S.view==='agenda')scrollToToday();});
+</script>
+</body>
+</html>

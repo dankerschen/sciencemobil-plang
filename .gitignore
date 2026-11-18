@@ -1,0 +1,6 @@
+# This repository is PUBLIC (GitHub Pages). Only the app page is published.
+# Everything else in this folder (handover, worker, sheet settings, test passwords) stays local.
+*
+!.gitignore
+!index.html
+!README.md
