@@ -204,6 +204,7 @@ const MARKER=/^(of\s*\/\s*op\w*|ofriichten|opriichten)\b[\s,:;-]*/i;
 // team meetings, trainings etc. (in Thema or in a Remarque column) become calendar events
 const MEET=/r[eé]union|reunioun|versammlung|sitzung|meeting|\bteams\b|teambuilding|formation|klausur|besprech/i;
 const ALLDAY=/ganz(en)?\s*dag|ganzen\s*tag|journ[eé]e\s*enti[eè]re|toute\s*la\s*journ[eé]e/i;
+const CLOCK=/\b\d{1,2}\s*h\s*\d{0,2}\b|\b\d{1,2}:\d{2}\b/i; // a real clock time (not a date like 10.09)
 const TIME_RE=/\b\d{1,2}\s*(?:h|:)\s*\d{0,2}(?:\s*[-–]\s*\d{1,2}\s*(?:h|:)\s*\d{0,2})?\s*:?/gi;
 
 function buildModel(rows,hide){
@@ -232,10 +233,15 @@ function buildModel(rows,hide){
   // "Sa 8h30-16h30 Formation handicap", "10h30 Sa Réunion FNR", "Reunioun Kim" -> {start,end,title,codes}
   const meeting=t=>{const tm=times(t,'');const noTime=t.replace(TIME_RE,' ').replace(/\s+/g,' ').trim();
     const p=parseRemark(noTime);return {start:tm.start,end:tm.end,title:(p.codes.length?p.rest:noTime)||t,codes:p.codes};};
+  // CET = time off taken from accumulated overtime (still absent); TT = télétravail (working, not absent)
+  const kindOf=x=>{const c=x.text;
+    if(/^tt\b|t[eé]l[eé]\s*-?\s*travail|home\s*office/i.test(c))return {...x,kind:'tt',text:'Teletravail'+c.replace(/^tt\b|t[eé]l[eé]\s*-?\s*travail|home\s*office/i,'')};
+    if(/^cet\b/i.test(c))return {...x,kind:'cet',text:c.replace(/^cet\b/i,'CET')+' (Iwwerstonnen)'};
+    return {...x,kind:'off'};};
   const parseConge=t=>{const m=/^([A-Za-zÀ-ÿ]{2,15})\s+(.+)$/.exec(t);
-    if(m&&known.has(m[1].toLowerCase()))return {code:canon[m[1].toLowerCase()],text:m[2]};
-    if(known.has(t.toLowerCase()))return {code:canon[t.toLowerCase()],text:'Congé'};
-    return {code:null,text:t};};
+    if(m&&known.has(m[1].toLowerCase()))return kindOf({code:canon[m[1].toLowerCase()],text:m[2]});
+    if(known.has(t.toLowerCase()))return kindOf({code:canon[t.toLowerCase()],text:'Congé'});
+    return kindOf({code:null,text:t});};
 
   const days=new Map(),placements=[{lines:[]}];
   let pi=0,cur=null,sawDate=false,lastG=[];
@@ -271,6 +277,7 @@ function buildModel(rows,hide){
     if(cg){const c=parseConge(cg);if(!day.conge.some(x=>x.code===c.code&&x.text===c.text))day.conge.push(c);}
     for(const k of ['r1','r2','r3']){const rt=cellv(r,C[k]);if(!rt)continue;
       if(MEET.test(rt)){const mt=meeting(rt);day.events.push({start:mt.start,end:mt.end,title:mt.title,guides:mt.codes,allDay:!mt.start,meet:true});continue;}
+      if(CLOCK.test(rt)){const mt=meeting(rt);if(mt.start){day.events.push({start:mt.start,end:mt.end,title:mt.title,guides:mt.codes,appt:true});continue;}} // "Sa 9h00 Florence" -> appointment
       const p=parseRemark(rt);if(p.codes.length)day.pnotes.push(p);else day.notes.push(rt);}
     const mob=cellv(r,C.mobil);if(mob)day.logi.push(mob);
 
@@ -488,7 +495,7 @@ function dayHtml(m,day,g,today){
   let h=`<div class="day ${day.date===today?'today':''} ${free?'free':''}"><div class="dh"><b>${fmtDay(day.date)}</b><span>`;
   const place=hasSess&&site&&placeOf(site);
   if(hasSess&&site)h+=`<span class="site">${esc(site)}</span>${place?'':`<button class="pin" data-site="${esc(site)}" title="Adress derbäisetzen">📍 Adress?</button>`}`;
-  if(leave)h+=`<span class="tag warn">${esc(d.cg.map(c=>c.text).join(', '))}</span>`;
+  for(const c of d.cg)h+=`<span class="tag${c.kind==='tt'?'':' warn'}">${c.kind==='tt'?'🏠 ':''}${esc(c.text)}</span>`;
   if(holiday(day.date)&&!day.sessions.length&&!day.events.length)h+=`<span class="tag">${esc(holiday(day.date))}</span>`;
   if(day.setup&&teamOn)h+=`<span class="tag">Opriichten</span>`;
   if(day.teardown&&teamOn)h+=`<span class="tag">Ofriichten</span>`;
@@ -580,7 +587,9 @@ function renderTeam(){
       const ds=addDays(wk,i);const day=m.days.find(x=>x.date===ds);
       let c='–',cls='c';
       if(day){const d=dayFor(day,g);
-        if(d.cg.some(x=>x.code))cls+=' lv',c=esc(d.cg.find(x=>x.code).text);
+        const off=d.cg.find(x=>x.code&&x.kind!=='tt'),tt=d.cg.find(x=>x.code&&x.kind==='tt');
+        if(off)cls+=' lv',c=esc(off.text);
+        else if(tt&&!d.s.length)c='🏠 '+esc(tt.text);
         else if(d.s.length){const st=d.s.map(x=>x.start).sort()[0],en=d.s.map(x=>x.end).sort().slice(-1)[0];c=`<b>${esc(siteOf(m,day)||'?')}</b><br>${d.s.length}× ${esc(st)}–${esc(en)}`;}
         else if(d.ev.length)c=esc(d.ev[0].title);
         else if(d.mine)c='Evenement';
