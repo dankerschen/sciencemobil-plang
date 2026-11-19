@@ -133,7 +133,8 @@ const CONFIG = {
   // the sheet address lives in wrangler.toml, the passwords are Cloudflare secrets.
   apiBase: typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ?'http://localhost:8787/' : 'https://guiden-planung.dan-9d4.workers.dev/',
   refreshMinutes: 5,
-  horizonMonths: 2,          // show nothing later than this many months ahead (rounded to the end of that week); 0 = no limit
+  horizonMonths: 2,          // planning further ahead than this is "not fixed yet" (warning); also the calendar feed's range
+  showWeeks: 6,              // the app shows this week + this many weeks; the "next 6 weeks" button adds as many again
   hideGuides: ['Martine'],
   // school year this sheet tab belongs to. After `end`, the app shows a reminder to switch to the new
   // tab (gid above) and check the holiday list below. Update all three when the new school year starts.
@@ -150,7 +151,7 @@ const CONFIG = {
     ['2027-05-17','2027-05-17','Péngschtméindeg'],
     ['2027-05-29','2027-06-06','Péngschtvakanz'],
     ['2027-06-23','2027-06-23','Nationalfeierdag'],
-    ['2027-07-16','2027-09-14','Summervakanz'],
+    ['2027-07-15','2027-09-14','🏖️ Summervakanz'], // ScienceMobil stops on 15 July (schools: 16 July)
     ['2027-10-30','2027-11-07','Allerhellegevakanz'],
     ['2027-12-18','2028-01-02','Chrëschtvakanz'],
     ['2028-02-12','2028-02-20','Fuesvakanz'],
@@ -162,7 +163,7 @@ const CONFIG = {
     ['2028-05-27','2028-06-04','Péngschtvakanz'],
     ['2028-06-05','2028-06-05','Péngschtméindeg'],
     ['2028-06-23','2028-06-23','Nationalfeierdag'],
-    ['2028-07-14','2028-09-14','Summervakanz'],
+    ['2028-07-14','2028-09-14','🏖️ Summervakanz'],
     ['2028-10-28','2028-11-05','Allerhellegevakanz'],
     ['2028-12-16','2028-12-31','Chrëschtvakanz'],
     ['2029-01-01','2029-01-01','Neijoerschdag'],
@@ -172,7 +173,7 @@ const CONFIG = {
     ['2029-05-09','2029-05-09','Europadag'],
     ['2029-05-10','2029-05-10','Christi Himmelfaart'],
     ['2029-05-19','2029-05-27','Péngschtvakanz'],
-    ['2029-07-13','2029-09-16','Summervakanz']
+    ['2029-07-13','2029-09-16','🏖️ Summervakanz']
   ]   // codes found in the sheet that get no button, agenda or team-grid row (case-insensitive)
 };
 
@@ -219,6 +220,11 @@ const MARKER=/^(of\s*\/\s*op\w*|ofriichten|opriichten)\b[\s,:;-]*/i;
 const MEET=/r[eé]union|reunioun|versammlung|sitzung|meeting|\bteams\b|teambuilding|formation|klausur|besprech/i;
 const ALLDAY=/ganz(en)?\s*dag|ganzen\s*tag|journ[eé]e\s*enti[eè]re|toute\s*la\s*journ[eé]e/i;
 const CLOCK=/\b\d{1,2}\s*h\s*\d{0,2}\b|\b\d{1,2}:\d{2}\b/i; // a real clock time (not a date like 10.09)
+// a meeting with Isabelle or Kim where no guide is named is only for SA and AL
+const WITH_BOSS=/\b(isabelle|kim)\b/i, BOSS_CODES=['sa','al'];
+// emoji per activity (Thema), German and French titles
+const THEMA_ICONS=[[/trick|astuce/i,'🪄'],[/\barme\b|\bbras\b/i,'💪'],[/verschiedene\w*\s+tiere/i,'🐻'],[/tiergewimmel/i,'🦁'],[/\bluca\b/i,'🦠']];
+const themaIcon=t=>{const x=THEMA_ICONS.find(([re])=>re.test(t||''));return x?x[1]+' ':'';};
 const TIME_RE=/\b\d{1,2}\s*(?:h|:)\s*\d{0,2}(?:\s*[-–]\s*\d{1,2}\s*(?:h|:)\s*\d{0,2})?\s*:?/gi;
 
 function buildModel(rows,hide){
@@ -237,7 +243,7 @@ function buildModel(rows,hide){
   const known=new Set(Object.keys(canon));
 
   const parseRemark=t=>{ // leading guide codes => personal note
-    const toks=t.split(/[\s,+/&]+/).filter(Boolean);const codes=[];let n=0;
+    const toks=t.split(/[\s,+/&:;]+/).filter(Boolean);const codes=[];let n=0;
     for(const tok of toks){const l=tok.toLowerCase();
       if(known.has(l)){codes.push(canon[l]);n++;}
       else if(tok.length===1&&codes.length){const m=[...known].filter(k=>k[0]===l);if(m.length===1){codes.push(canon[m[0]]);n++;}else break;}
@@ -246,7 +252,10 @@ function buildModel(rows,hide){
   };
   // "Sa 8h30-16h30 Formation handicap", "10h30 Sa Réunion FNR", "Reunioun Kim" -> {start,end,title,codes}
   const meeting=t=>{const tm=times(t,'');const noTime=t.replace(TIME_RE,' ').replace(/\s+/g,' ').trim();
-    const p=parseRemark(noTime);return {start:tm.start,end:tm.end,title:(p.codes.length?p.rest:noTime)||t,codes:p.codes};};
+    const p=parseRemark(noTime);let codes=p.codes;
+    if(!codes.length&&WITH_BOSS.test(noTime))codes=BOSS_CODES.filter(c=>known.has(c)).map(c=>canon[c]);
+    const ti=((p.codes.length?p.rest:noTime)||t).replace(/\s+([,;.])/g,'$1');
+    return {start:tm.start,end:tm.end,title:ti[0].toUpperCase()+ti.slice(1),codes};};
   // CET = time off taken from accumulated overtime (still absent); TT = télétravail (working, not absent)
   const kindOf=x=>{const c=x.text;
     if(/^tt\b|t[eé]l[eé]\s*-?\s*travail|home\s*office/i.test(c))return {...x,kind:'tt',text:'Teletravail'+c.replace(/^tt\b|t[eé]l[eé]\s*-?\s*travail|home\s*office/i,'')};
@@ -292,7 +301,10 @@ function buildModel(rows,hide){
     for(const k of ['r1','r2','r3']){const rt=cellv(r,C[k]);if(!rt)continue;
       if(MEET.test(rt)){const mt=meeting(rt);day.events.push({start:mt.start,end:mt.end,title:mt.title,guides:mt.codes,allDay:!mt.start,meet:true});continue;}
       if(CLOCK.test(rt)){const mt=meeting(rt);if(mt.start){day.events.push({start:mt.start,end:mt.end,title:mt.title,guides:mt.codes,appt:true});continue;}} // "Sa 9h00 Florence" -> appointment
-      const p=parseRemark(rt);if(p.codes.length)day.pnotes.push(p);else day.notes.push(rt);}
+      const p=parseRemark(rt);
+      // Remarque 3 starting with guide code(s), e.g. "Pa planetarium": a meeting for only that guide (all day)
+      if(k==='r3'&&p.codes.length&&p.rest){day.events.push({start:'',end:'',title:p.rest[0].toUpperCase()+p.rest.slice(1),guides:p.codes,allDay:true,meet:true});continue;}
+      if(p.codes.length)day.pnotes.push(p);else day.notes.push(rt);}
     const mob=cellv(r,C.mobil);if(mob)day.logi.push(mob);
 
     if(isMarker){ if(thema)day.notes.push(thema); }
@@ -516,29 +528,32 @@ async function load(force,pre){
   else{text=LS.get('csv');S.offline=true;S.fetchedAt=+LS.get('csvAt')||0;}
   if(!text){$('#status').textContent='D’Tabell konnt net geluede ginn an et ass nach näischt gespäichert.';$('#status').className='off';return;}
   try{S.base=buildModel(parseCSV(text),CONFIG.hideGuides);S.full=applyEdits(S.base,S.edits);S.horizon=horizonEnd();
-    // last day with a session that already has a guide (anyone); beyond the horizon this is only shown on request
-    S.lastPlanned=S.full.days.filter(d=>d.sessions.some(s=>s.guides.length)).map(d=>d.date).pop()||'';
+    S.lastDay=S.full.days.map(d=>d.date).pop()||'';
     applyLimit();}catch(e){$('#status').textContent='D’Layout vun der Tabell konnt net gelies ginn: '+e.message;$('#status').className='off';return;}
   if(S.guide&&!S.model.guides.some(g=>g.toLowerCase()===S.guide.toLowerCase()))S.guide='';
   render();
 }
-// S.model = S.full cut at the horizon, or at the last planned day when the viewer chose "Méi wäit kucken"
+// shown period: this week + showWeeks weeks, plus showWeeks more for each tap on "next 6 weeks" (S.more)
+const viewEnd=more=>addDays(mondayOf(ymd(new Date())),7*CONFIG.showWeeks*(1+more)+6);
+// S.model = S.full cut at the end of the shown period
 function applyLimit(){
-  const lim=S.beyond&&S.lastPlanned>S.horizon?S.lastPlanned:S.horizon;
-  S.model={...S.full,days:S.full.days.filter(d=>d.date<=lim)};
+  S.limit=viewEnd(S.more||0);
+  S.model={...S.full,days:S.full.days.filter(d=>d.date<=S.limit)};
 }
+const moreBtn=()=>S.lastDay>S.limit?`<button class="past" id="more">Déi nächst ${CONFIG.showWeeks} Wochen weisen (bis ${fmtShort(addDays(viewEnd((S.more||0)+1),-2))})</button>`:'';
 const weekDays=(m,wk)=>m.days.filter(d=>d.date>=wk&&d.date<=addDays(wk,4));
 const teamOff=day=>day.conge.some(c=>!c.code);
 const holiday=ds=>{const h=(CONFIG.holidays||[]).find(([a,b])=>ds>=a&&ds<=b);return h?h[2]:'';};
-// name of the school holiday if all of Mon-Fri are holiday AND the sheet has nothing planned that week, else ''.
-// The sheet always wins: any session or event in the week means it is shown normally, without a holiday banner.
+// name of the school holiday if all of Mon-Fri are holiday AND the sheet has no class that week, else ''.
+// The sheet always wins: any session in the week means it is shown normally, without a holiday banner.
+// Meetings can still happen in the holidays (summer): they are shown under the banner.
 const holidayWeek=wk=>{const n=[0,1,2,3,4].map(i=>holiday(addDays(wk,i)));if(!n.every(Boolean))return '';
-  if(S.full&&weekDays(S.full,wk).some(d=>d.sessions.length||d.events.length))return '';
+  if(S.full&&weekDays(S.full,wk).some(d=>d.sessions.length))return '';
   return [...new Set(n)].join(' / ');};
 // a week whose planning is not finished: no session with a guide yet, and not a holiday/day-off on every weekday
 const unfinished=wk=>{const ds=weekDays(S.full,wk);
   if(ds.some(d=>d.sessions.some(s=>s.guides.length)))return false;
-  const off=[0,1,2,3,4].filter(i=>{const x=addDays(wk,i);return (holiday(x)&&!ds.some(d=>d.date===x&&(d.sessions.length||d.events.length)))||ds.some(d=>d.date===x&&teamOff(d));}).length;
+  const off=[0,1,2,3,4].filter(i=>{const x=addDays(wk,i);return (holiday(x)&&!ds.some(d=>d.date===x&&d.sessions.length))||ds.some(d=>d.date===x&&teamOff(d));}).length;
   return off<5;};
 const NOT_DONE=`<div class="notice">D’Planung fir dës Woch ass nach net fäerdeg.</div>`;
 const HOL_NOTE=n=>`<div class="notice hol">Schoulvakanz: ${esc(n)}</div>`;
@@ -568,7 +583,7 @@ function sessHtml(x){
   if(x.tel){if(isPhone(x.tel))phone=x.tel;else lang=x.tel;}
   if(lang)bits.push(esc(lang));
   return `<div class="sess"><div class="time">${esc(x.start)}<span>${esc(x.end)}</span></div><div>
-    <div class="thema">${esc(x.thema||'Aktivitéit')}</div>
+    <div class="thema">${themaIcon(x.thema)}${esc(x.thema||'Aktivitéit')}</div>
     <div class="meta">${bits.join(' · ')}</div>
     ${x.teacher?`<div class="teach">${linkify(x.teacher)}</div>`:''}
     ${phone?`<div class="teach">📞 ${linkify(phone)}</div>`:''}
@@ -586,7 +601,7 @@ function dayHtml(m,day,g,today){
   const place=hasSess&&site&&placeOf(site);
   if(hasSess&&site)h+=`<span class="site">${esc(site)}</span>${place?`<a class="navbtn go" data-a="${esc(place.a)}" href="${esc(navUrl(place.a))}"${navTarget()} aria-label="Navigatioun op ${esc(site)}">${GPS_ICON}Navi</a>`:`<button class="pin" data-site="${esc(site)}" title="Adress derbäisetzen">📍 Adress?</button>`}`;
   for(const c of d.cg)h+=`<span class="tag${c.kind==='tt'?'':' warn'}">${c.kind==='tt'?'🏠 ':''}${esc(c.text)}</span>`;
-  if(holiday(day.date)&&!day.sessions.length&&!day.events.length)h+=`<span class="tag">${esc(holiday(day.date))}</span>`;
+  if(holiday(day.date)&&!day.sessions.length)h+=`<span class="tag">${esc(holiday(day.date))}</span>`;
   if(day.setup&&teamOn)h+=`<span class="tag">Opriichten</span>`;
   if(day.teardown&&teamOn)h+=`<span class="tag">Ofriichten</span>`;
   h+=`</span></div>`;
@@ -628,15 +643,11 @@ function renderAgenda(){
   const thisWk=mondayOf(today);
   // from this week to the horizon, add weeks whose planning is not finished, so they show a note instead of disappearing
   // holiday weeks show their name instead
-  for(let wk=thisWk;wk<=S.horizon;wk=addDays(wk,7)){
+  for(let wk=thisWk;wk<=S.limit;wk=addDays(wk,7)){
     const hol=holidayWeek(wk),open=!hol&&unfinished(wk);
     if(hol||open){if(!weeks.has(wk))weeks.set(wk,{wk,days:new Map(),mine:true});const w=weeks.get(wk);w.mine=true;w.open=true;w.hol=hol;w.undone=open;}}
   const all=[...weeks.values()].filter(w=>w.mine).sort((a,b)=>a.wk<b.wk?-1:1);
-  // anything for this guide already planned after the horizon?
-  const later=S.full.days.some(d=>d.date>S.horizon&&dayFor(d,g).s.length);
-  const laterBtn=later?(S.beyond
-    ?`<button class="past" id="beyond">Nëmmen déi nächst ${CONFIG.horizonMonths} Méint weisen</button>`
-    :`<button class="past" id="beyond">Méi wäit kucken: no dem ${fmtShort(S.horizon)} ass schonn eppes fir ${esc(g)} agedroen (nach net fix, kann nach änneren)</button>`):'';
+  const laterBtn=moreBtn();
   if(!all.length)return calBlock(g)+`<button class="addev" id="addev">＋ Termin / Reunioun derbäisetzen</button>`+`<div class="empty">Fir ${esc(g)} ass nach näischt agedroen.</div>`+laterBtn;
   const past=all.filter(w=>addDays(w.wk,6)<today),rest=all.filter(w=>addDays(w.wk,6)>=today);
   const vis=S.showPast?all:rest;
@@ -660,15 +671,14 @@ function renderAgenda(){
   return h+laterBtn;
 }
 
-// team grid: ▶ stops at the horizon, or at the last planned week if something is already assigned beyond it
-const teamLimit=()=>S.lastPlanned>S.horizon?addDays(mondayOf(S.lastPlanned),6):S.horizon;
+// team grid: ▶ goes on until the last day in the sheet; past the shown period it opens the next 6 weeks
 function renderTeam(){
   const m=S.full,today=ymd(new Date());
   if(!S.week){
     const w=mondayOf(today);S.week=w;
   }
   const wk=S.week;
-  let h=`<div class="wkbar"><button class="icon" id="pw">◀</button><b>Woch ${isoWeek(wk)} · ${fmtShort(wk)} – ${fmtShort(addDays(wk,4))}</b><button class="icon" id="nw"${addDays(wk,7)>teamLimit()?' disabled':''}>▶</button></div>`;
+  let h=`<div class="wkbar"><button class="icon" id="pw">◀</button><b>Woch ${isoWeek(wk)} · ${fmtShort(wk)} – ${fmtShort(addDays(wk,4))}</b><button class="icon" id="nw"${addDays(wk,7)>S.lastDay?' disabled':''}>▶</button></div>`;
   if(holidayWeek(wk))h+=HOL_NOTE(holidayWeek(wk));
   if(wk>S.horizon)h+=NOT_FIX;
   else if(!holidayWeek(wk)&&wk>=mondayOf(today)&&unfinished(wk))h+=NOT_DONE;
@@ -682,7 +692,8 @@ function renderTeam(){
         const off=d.cg.find(x=>x.code&&x.kind!=='tt'),tt=d.cg.find(x=>x.code&&x.kind==='tt');
         if(off)cls+=' lv',c=esc(off.text);
         else if(tt&&!d.s.length)c='🏠 '+esc(tt.text);
-        else if(d.s.length){const st=d.s.map(x=>x.start).sort()[0],en=d.s.map(x=>x.end).sort().slice(-1)[0];c=`<b>${esc(siteOf(m,day)||'?')}</b><br>${d.s.length}× ${esc(st)}–${esc(en)}`;}
+        else if(d.s.length){const st=d.s.map(x=>x.start).sort()[0],en=d.s.map(x=>x.end).sort().slice(-1)[0];c=`<b>${esc(siteOf(m,day)||'?')}</b><br>${d.s.length}× ${esc(st)}–${esc(en)}`;
+          const ic=[...new Set(d.s.map(x=>themaIcon(x.thema).trim()).filter(Boolean))].join('');if(ic)c+=`<br>${ic}`;}
         else if(d.ev.length)c=esc(d.ev[0].title);
         else if(d.mine)c='Evenement';
         const mt=d.ev.filter(e=>e.meet);if(d.s.length&&mt.length)c+=`<br>👥 ${esc(mt.map(e=>e.allDay?'Dag':e.start).join(', '))}`;}
@@ -693,10 +704,8 @@ function renderTeam(){
     h+='</tr>';
   }
   h+='</table><div class="meta" style="margin-top:8px">Tipp op eng Zell, fir den Agenda vun deem Guide opzemaachen.</div>'+`<button class="addev" id="addev">＋ Termin / Reunioun derbäisetzen</button>`;
-  if(addDays(wk,7)>S.horizon&&S.lastPlanned>S.horizon&&wk<=S.horizon)
-    h+=`<div class="meta" style="margin-top:4px">No dem ${fmtShort(S.horizon)} ass schonn eppes agedroen: mat ▶ weiderkucken (nach net fix, kann nach änneren).</div>`;
   const un=m.days.filter(d=>d.date>=wk&&d.date<=addDays(wk,4)).flatMap(d=>d.sessions.filter(s=>!s.guides.length).map(s=>({d:d.date,s})));
-  if(un.length)h+=`<div class="notes"><b>Aktivitéite ouni Guide:</b>${un.map(u=>`<div>• ${fmtDay(u.d)} ${esc(u.s.start)} ${esc(u.s.thema)} ${esc(u.s.cycle)}</div>`).join('')}</div>`;
+  if(un.length)h+=`<div class="notes"><b>Aktivitéite ouni Guide:</b>${un.map(u=>`<div>• ${fmtDay(u.d)} ${esc(u.s.start)} ${themaIcon(u.s.thema)}${esc(u.s.thema)} ${esc(u.s.cycle)}</div>`).join('')}</div>`;
   return h;
 }
 
@@ -732,7 +741,9 @@ document.addEventListener('click',e=>{
   if(e.target.id==='refresh'){load(true);return;}
   if(e.target.id==='showpast'){S.showPast=true;render();return;}
   if(e.target.id==='pw'){S.week=addDays(S.week,-7);render();return;}
-  if(e.target.id==='nw'){if(addDays(S.week,7)<=teamLimit())S.week=addDays(S.week,7);render();return;}
+  if(e.target.id==='nw'){if(addDays(S.week,7)<=S.lastDay){S.week=addDays(S.week,7);
+      if(addDays(S.week,4)>S.limit){S.more=(S.more||0)+1;applyLimit();}}render();return;}
+  if(e.target.id==='more'){S.more=(S.more||0)+1;applyLimit();render();return;}
   if(e.target.id==='logout'){if(confirm('Op dësem Handy ofmellen?'))logout();return;}
   if(e.target.id==='copyics'){const b=e.target,u=b.dataset.u;
     const ok=()=>{b.textContent='Kopéiert ✓';setTimeout(()=>{b.textContent='Link kopéieren';},2000);};
@@ -742,7 +753,6 @@ document.addEventListener('click',e=>{
   const ee=e.target.closest('.evedit');
   if(ee){const ev=findEv(ee.dataset.date,ee.dataset.ev);if(ev)evForm(ev,ee.dataset.date);return;}
   if(e.target.id==='addev'){evForm(null,S.view==='team'&&S.week&&S.week>ymd(new Date())?S.week:ymd(new Date()));return;}
-  if(e.target.id==='beyond'){S.beyond=!S.beyond;applyLimit();render();return;}
   const td=e.target.closest('td.c');
   if(td){S.guide=td.dataset.g;localStorage.setItem('guide',S.guide);S.view='agenda';localStorage.setItem('view','agenda');render();
     const w=document.querySelector(`.wk[data-wk="${mondayOf(td.dataset.d)}"]`);if(w)w.scrollIntoView({block:'start'});}
