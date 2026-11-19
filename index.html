@@ -58,6 +58,8 @@ main{padding:10px 12px 40px;max-width:760px;margin:0 auto}
 .day{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0}
 .day.today{background:var(--today);border-color:var(--today-line);box-shadow:inset 4px 0 0 var(--today-line)}
 .day.free{opacity:.55;padding:6px 12px}
+/* days that are over: grey, no colours */
+.day.done,td.c.done{filter:grayscale(1);opacity:.55}
 .dh{display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
 .dh b{font-size:15px}
 .site{color:var(--accent);font-weight:600}
@@ -151,7 +153,7 @@ const CONFIG = {
     ['2027-05-17','2027-05-17','Péngschtméindeg'],
     ['2027-05-29','2027-06-06','Péngschtvakanz'],
     ['2027-06-23','2027-06-23','Nationalfeierdag'],
-    ['2027-07-15','2027-09-14','🏖️ Summervakanz'], // ScienceMobil stops on 15 July (schools: 16 July)
+    ['2027-07-16','2027-09-14','🏖️ Summervakanz'],
     ['2027-10-30','2027-11-07','Allerhellegevakanz'],
     ['2027-12-18','2028-01-02','Chrëschtvakanz'],
     ['2028-02-12','2028-02-20','Fuesvakanz'],
@@ -597,7 +599,7 @@ function dayHtml(m,day,g,today){
   const leave=d.cg.length>0;
   const q=S.q;
   const free=!d.mine&&!leave;
-  let h=`<div class="day ${day.date===today?'today':''} ${free?'free':''}"><div class="dh"><b>${fmtDay(day.date)}</b><span>`;
+  let h=`<div class="day ${day.date===today?'today':''} ${free?'free':''} ${day.date<today?'done':''}"><div class="dh"><b>${fmtDay(day.date)}</b><span>`;
   const place=hasSess&&site&&placeOf(site);
   if(hasSess&&site)h+=`<span class="site">${esc(site)}</span>${place?`<a class="navbtn go" data-a="${esc(place.a)}" href="${esc(navUrl(place.a))}"${navTarget()} aria-label="Navigatioun op ${esc(site)}">${GPS_ICON}Navi</a>`:`<button class="pin" data-site="${esc(site)}" title="Adress derbäisetzen">📍 Adress?</button>`}`;
   for(const c of d.cg)h+=`<span class="tag${c.kind==='tt'?'':' warn'}">${c.kind==='tt'?'🏠 ':''}${esc(c.text)}</span>`;
@@ -661,7 +663,7 @@ function renderAgenda(){
     else if(w.undone)h+=NOT_DONE;
     for(let i=0;i<7;i++){
       const ds=addDays(w.wk,i);const day=m.days.find(x=>x.date===ds);
-      if(!day){ if(i<5&&!w.open)h+=`<div class="day free"><div class="dh"><b>${fmtDay(ds)}</b>${holiday(ds)?`<span class="tag">${esc(holiday(ds))}</span>`:''}</div><div class="meta">–</div></div>`; continue;}
+      if(!day){ if(i<5&&!w.open)h+=`<div class="day free${ds<today?' done':''}"><div class="dh"><b>${fmtDay(ds)}</b>${holiday(ds)?`<span class="tag">${esc(holiday(ds))}</span>`:''}</div><div class="meta">–</div></div>`; continue;}
       const dd=dayFor(day,g);
       if(i>=5&&!dd.mine)continue;
       if(w.open&&!dd.mine&&!teamOff(day))continue; // unfinished week: only days that carry something (leave, notes for this guide)
@@ -699,6 +701,7 @@ function renderTeam(){
         const mt=d.ev.filter(e=>e.meet);if(d.s.length&&mt.length)c+=`<br>👥 ${esc(mt.map(e=>e.allDay?'Dag':e.start).join(', '))}`;}
       if(c==='–'&&holiday(ds))c=`<span class="meta">${esc(holiday(ds))}</span>`;
       if(g.toLowerCase()===S.guide.toLowerCase())cls+=' me';
+      if(ds<today)cls+=' done';
       h+=`<td class="${cls}" data-g="${esc(g)}" data-d="${ds}">${c}</td>`;
     }
     h+='</tr>';
