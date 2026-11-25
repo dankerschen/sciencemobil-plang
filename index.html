@@ -415,7 +415,7 @@ const isAndroid=/Android/i.test(navigator.userAgent);
 const dest=a=>{const c=coords(a);return c?c.lat+','+c.lon:encodeURIComponent(a);};
 const NAV_APPS={
   waze:a=>{const c=coords(a);return c?`https://waze.com/ul?ll=${c.lat},${c.lon}&navigate=yes`:'https://waze.com/ul?q='+encodeURIComponent(a)+'&navigate=yes';},
-  apple:a=>{const c=coords(a);return c?`https://maps.apple.com/?daddr=${c.lat},${c.lon}&ll=${c.lat},${c.lon}&dirflg=d`:'https://maps.apple.com/?daddr='+encodeURIComponent(a)+'&dirflg=d';},
+  apple:a=>'https://maps.apple.com/directions?destination='+dest(a)+'&mode=driving', // Apple's current URL format (iOS 18.4+)
   google:a=>'https://www.google.com/maps/dir/?api=1&destination='+dest(a)};
 const navUrl=a=>{const c=coords(a);
   if(isAndroid)return c?`geo:${c.lat},${c.lon}?q=${c.lat},${c.lon}`:'geo:0,0?q='+encodeURIComponent(a);
